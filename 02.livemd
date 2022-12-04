@@ -1,0 +1,112 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 2 - Pedra, Papel, Tesoura
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.7.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Lendo o arquivo de entrada
+
+```elixir
+input = Kino.Input.textarea("Arquivo de Entrada")
+```
+
+### Organizando o arquivo de entrada
+
+Cada jogada pode ser representada por dois caracteres: o primeiro é a jogada do elfo, e o segundo é a nossa jogada. Então basta ler cada linha do arquivo e formar uma lista de strings com 2 caracteres cada.
+
+```elixir
+strategy =
+  Kino.Input.read(input)
+  |> String.split(["\n", " "], trim: true)
+  |> Enum.chunk_every(2)
+  |> Enum.map(&Enum.join/1)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+["CZ", "AY", "CZ", "AY", "CY", "AZ", "BY", "CX", "AY", "BX", "BX", "AY", "CZ", "CY", "CY", "AY",
+ "CY", "BX", "BX", "AZ", "CY", "BZ", "CZ", "AZ", "BY", "AY", "CZ", "AZ", "AY", "CZ", "CZ", "AX",
+ "AY", "BY", "CX", "BY", "CZ", "AZ", "AX", "AZ", "AY", "CY", "CX", "CY", "AZ", "CZ", "CZ", "AY",
+ "AZ", "CZ", ...]
+```
+
+### Calculando a pontuação
+
+Aqui não tem muito mistério: só existem 9 combinações possíveis em um jogo de pedra/papel/tesoura, e cada combinação vai resultar em uma pontuação diferente.
+
+O mapa `scores` reflete as regras da pontuação:
+
+* Toda vez que jogamos **pedra** (strings que terminam com `X`) ganhamos `1 ponto + a pontuação do resultado`
+* Toda vez que jogamos **papel** (strings que terminam com `Y`) ganhamos `2 pontos + a pontuação do resultado`
+* Toda vez que jogamos **tesoura** (strings que terminam com `Z`) ganhamos `3 pontos + a pontuação do resultado`
+
+Aí é só fazer um de-para das jogadas com o mapa de pontuações e somar.
+
+```elixir
+scores = %{
+  "AX" => 1 + 3,
+  "BX" => 1 + 0,
+  "CX" => 1 + 6,
+  "AY" => 2 + 6,
+  "BY" => 2 + 3,
+  "CY" => 2 + 0,
+  "AZ" => 3 + 0,
+  "BZ" => 3 + 6,
+  "CZ" => 3 + 3
+}
+
+strategy
+|> Enum.map(fn play -> Map.get(scores, play) end)
+|> Enum.sum()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+12586
+```
+
+### Estrela 2: Recalculando a pontuação
+
+Aqui as regras mudaram, mas o formato de cálculo vai ser o mesmo. Basta mudar o mapa que relaciona jogadas com pontuações:
+
+O mapa `new_scores` agora reflete as novas regras da pontuação:
+
+* Toda vez que **perdemos** (strings que terminam com `X`) ganhamos `0 pontos + a pontuação da nossa mão`
+* Toda vez que **empatamos** (strings que terminam com `Y`) ganhamos `3 pontos + a pontuação da nossa mão`
+* Toda vez que **ganhamos** (strings que terminam com `Z`) ganhamos `6 pontos + a pontuação da nossa mão`
+
+```elixir
+new_scores = %{
+  "AX" => 3 + 0,
+  "BX" => 1 + 0,
+  "CX" => 2 + 0,
+  "AY" => 1 + 3,
+  "BY" => 2 + 3,
+  "CY" => 3 + 3,
+  "AZ" => 2 + 6,
+  "BZ" => 3 + 6,
+  "CZ" => 1 + 6
+}
+
+strategy
+|> Enum.map(fn play -> Map.get(new_scores, play) end)
+|> Enum.sum()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+13193
+```

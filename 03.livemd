@@ -1,0 +1,271 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 3 - Reorganizando a Mochila
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.7.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Leitura do arquivo de entrada
+
+```elixir
+input = Kino.Input.textarea("Arquivo de entrada")
+```
+
+### Organizando as mochilas
+
+Para organizar as mochilas, basta dividir a string que existe em cada linha exatamente na metade. Depois disso, dividimos cada substring em uma lista de caracteres que representam os items que os elfos carregam em cada compartimento da mochila.
+
+```elixir
+rucksacks =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn rucksack ->
+    String.split_at(rucksack, Integer.floor_div(String.length(rucksack), 2))
+  end)
+  |> Enum.map(fn {compartment1, compartment2} ->
+    {String.split(compartment1, "", trim: true), String.split(compartment2, "", trim: true)}
+  end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  {["D", "s", "P", "h", "S", "B", "Q", "Q", "Q", "h", "q", "m", "B", "D", "h", "P", "D", "s", "F"],
+   ["w", "j", "w", "s", "L", "j", "l", "R", "j", "l", "t", "t", "v", "j", "v", "v", "t", "R", "b"]},
+  {["r", "N", "J", "M", "N", "N", "b", "r", "H", "r"],
+   ["t", "j", "H", "L", "H", "j", "v", "w", "t", "g"]},
+  {["f", "N", "b", "N", "z", "Z", "d", "r", "Z", "n", "M", "n", "M"],
+   ["P", "n", "Q", "S", "h", "F", "P", "D", "m", "n", "q", "F", "m"]},
+  {["Q", "W", "V", "C", "F", "f", "Q", "f", "f", "g", "Q", "C", "V", "Z", "z", "V", "V"],
+   ["p", "H", "s", "H", "J", "B", "q", "t", "p", "s", "p", "J", "F", "R", "H", "q", "q"]},
+  {["m", "w", "D", "b", "m", "n", "n", "G", "N", "l", "N", "c", "w", "N", "D", "D", "N", "R", "b",
+    "n", "N", "D", "l"],
+   ["J", "T", "p", "B", "J", "B", "t", "J", "G", "t", "P", "T", "L", "s", "B", "G", "q", "T", "q",
+    "q", "s", "q", "p"]},
+  {["M", "l", "S", "d", "n", "S", "c", "R", "n", "n", "m", "m", "D", "j", "S", "d", "N", "S", "d"],
+   ["C", "z", "v", "g", "g", "W", "z", "r", "g", "z", "j", "v", "f", "v", "r", "g", "V", "z", "W"]},
+  {["g", "s", "M", "l", "j", "b", "r", "j", "l", "Z", "l", "W", "c", "W", "M", "J", "r", "W"],
+   ["w", "T", "w", "b", "m", "w", "Q", "b", "m", "m", "L", "D", "Q", "Q", "L", "h", "w", "L"]},
+  {["C", "d", "g", "p", "z", "d", "g", "p", "g", "n", "f"],
+   ["T", "h", "H", "f", "F", "R", "w", "h", "f", "R", "f"]},
+  {["S", "p", "t", "g", "p", "S", "p", "n", "C", "N", "p", "V", "S", "G", "N", "P", "v", "P", "G",
+    "S", "d", "d"],
+   ["c", "M", "W", "j", "M", "r", "j", "q", "B", "s", "J", "c", "W", "q", "M", "c", "B", "W", "c",
+    "V", "l", "Z"]},
+  {["J", "c", "J", "L", "Q", "Q", "F", "W", "h", "Q", "J", "P", "J", "p", "W", "c"],
+   ["w", "j", "H", "v", "M", "Q", "v", "n", "n", "l", "M", "v", "z", "B", "H", "d"]},
+  {["t", "C", "t", "G", "Z", "r", "m", "V", "R", "m", "V", "G", "T", "V", "T", "t", "C", "f", "R",
+    "T", "C"],
+   ["H", "H", "N", "N", "v", "d", "N", "z", "m", "d", "M", "v", "M", "l", "N", "z", "v", "w", "d",
+    "v", "w"]},
+  {["C", "T", "G", "G", "R", "f", "t", "f", "S", "G", "t", "G", "T", "G"],
+   ["D", "L", "b", "F", "c", "h", "S", "g", "S", "W", "W", "W", "c", "M"]},
+  {["Q", "c", "M", "F", "Q", "r", "v", "r", "Q", "b", "v", "t", "c", "z", "b", "V", "b", "j", "b",
+    "M"],
+   ["z", "Z", "z", "R", "p", "q", "m", "D", "D", "m", "q", "q", "n", "N", "z", "C", "D", "C", "D",
+    "C"]},
+  {["S", "H", "H", "f", "P", "J", "s", "s", "G", "L", "P", "S", "d", "H", "T", "h", "L", "h", "H",
+    "d"],
+   ["R", "m", "q", "N", "m", "N", "s", "s", "n", "N", "m", "N", "C", "N", "n", "p", "j", "m", "s",
+    "n"]},
+  {["L", "h", "L", "J", "f", "T", "d", "L", "J", "w", "f", "g", "P", "T", "d", "f", "G"],
+   ["c", "c", "r", "t", "j", "c", "M", "r", "c", "c", "w", "v", "c", "r", "r", "F", "r"]},
+  {["j", "F", "L", "L", "L", "q", "D", "G", "j", "b", "t", "q", "L", "C", "C", "h"],
+   ["p", "M", "M", "h", "M", "B", "v", "p", "w", "M", "T", "m", "f", "f", "p", "Z"]},
+  {["Z", "n", "J", "H", "R", "n", "c", "H", "H", "g", "n", "r", "s", "r", "Z"],
+   ["f", "f", "T", "d", "M", "d", "M", "B", "f", "m", "M", "v", "f", "v", "R"]},
+  {["N", "W", "W", "P", "n", "Z", "r", "V", "H", "r", "Z", "P"],
+   ["C", "D", "D", "Q", "t", "z", "D", "C", "P", "L", "C", "q"]},
+  {["j", "p", "F", "j", "v", "B", "Z", "h", "D", "F", "H", "Z", "d"],
+   ["w", "c", "m", "s", "l", "c", "s", "l", "B", "L", "L", "N", "l"]},
+  {["d", "V", "t", "T", "V", "V", "C", "z", "z", "f", "r", "r", "M"],
+   ["P", "N", "L", "L", "c", "n", "V", "c", "P", "L", "R", "n", "s"]},
+  {["C", "r", "z", "W", "z", "T", "q", "d", "W", "t", "G", "C", "z", "J", "t", "b", "J", "C", "r",
+    "M"],
+   ["j", "j", "D", "F", "H", "Z", "Q", "j", "Z", "S", "p", "v", "F", "G", "F", "g", "H", "h", "H",
+    "p"]},
+  {["J", "j", "J", "q", "M", "c", "t", "n"], ["h", "t", "D", "Z", "D", "Q", "t", "f"]},
+  {["T", "r", "F", "F", "l", "r", "r", "C", "C", "H", "P", "w", "H", "w", "l", "P", "H", "F", "P"],
+   ["z", "D", "h", "s", "f", "f", "Q", "Q", "D", "s", "V", "f", "W", "w", "V", "J", "Q", "J", "B"]},
+  {["H", "H", "H", "G", "d", "F", "l", "H", "l", "d", "T", "p", "C", "C", "F", "F", "l", "L", "H",
+    "d", "C", "R", "J"],
+   ["c", "c", "M", "n", "q", "v", "q", "M", "g", "n", "N", "j", "j", "M", "j", "j", "v", "L", "M",
+    "L", "c", "S", "v"]},
+  {["c", "M", "f", "F", "c", "M", "F", "c", "r", "q", "g", "J", "L", "F", "Z"],
+   ["d", "r", "T", "D", "d", "t", "h", "P", "G", "s", "G", "m", "t", "G", "s"]},
+  {["W", "w", "j", "N", "w", "n", "j", "j", "B", "Q", "z", "V", "V", "Q", "H", "w", "R"],
+   ["D", "n", "m", "t", "P", "G", "h", "P", "P", "s", "P", "n", "n", "T", "G", "l", "d"]},
+  {["b", "W", "H", "B", "j", "W", "V", "z", "p", "b", "R", "z"],
+   ["b", "m", "S", "c", "q", "g", "Z", "M", "F", "c", "q", "f"]},
+  {["R", "J", "j", "P", "T", "B", "J", "h", "T", "N", "N", "j", "f", "P", "h", "R", "B"],
+   ["d", "q", "t", "l", "g", "d", "b", "G", "l", "d", "w", "t", "C", "P", "g", "d", "b"]},
+  {["Z", "m", "r", "H", "H", "m", "z", "p", "v", "S", "v", "v", "p", "z", "v", "m", "v", "D", "V"],
+   ["C", "G", "l", "W", "V", "w", "C", "W", "t", "G", "t", "W", "C", "d", "d", "g", "g", "q", "f"]},
+  {["Q", "Q", "p", "z", "F", "r", "H", "H", "Q", "n", "z", "H", "v", "f"],
+   ["T", "c", "N", "s", "h", "c", "L", "R", "N", "F", "J", "h", "c", "R"]},
+  {["Q", "r", "P", "Q", "D", "r", "p", "p"], ["B", "Q", "m", "C", "m", "F", "Q", "m"]},
+  {["T", "z", "q", "z", "s", "L", "f", "m", "s", "f", "S", "T", "f", "q", "z", "V", "L", ...],
+   ["N", "d", "J", "J", "N", "J", "G", "C", "w", "w", "G", "d", "g", "C", "w", "S", ...]},
+  {["T", "V", "H", "T", "f", "z", "W", "s", "f", "f", "t", "s", "Z", "s", "t", "n"],
+   ["b", "v", "r", "b", "W", "b", "r", "b", "p", "p", "P", "b", "r", "m", "m", ...]},
+  {["B", "Q", "r", "f", "q", "r", "L", "t", "J", "n", "t", "t", "q", "q", "t", ...],
+   ["z", "R", "g", "l", "d", "h", "V", "V", "p", "J", "l", "g", "z", "p", ...]},
+  {["T", "T", "N", "c", "P", "Z", "C", "v", "Z", "j", "m", "P", "F", "Z", ...],
+   ["L", "l", "W", "d", "N", "L", "g", "h", "V", "h", "z", "z", "l", ...]},
+  {["j", "c", "F", "P", "b", "T", "c", "Z", "T", "F", "c", "m", "c", ...],
+   ["w", "b", "n", "D", "B", "t", "f", "q", "b", "t", "B", "w", ...]},
+  {["S", "Z", "J", "N", "J", "t", "r", "N", "z", "j", "j", "N", ...],
+   ["B", "B", "m", "q", "m", "Q", "D", "B", "B", "m", "D", ...]},
+  {["P", "G", "P", "b", "G", "w", "h", "L", "s", "n", "v", ...],
+   ["Z", "s", "D", "s", "T", "B", "B", "g", "c", "Z", ...]},
+  {["p", "n", "n", "h", "h", "v", "p", "h", "G", "V", ...],
+   ["J", "l", "S", "F", "R", "N", "N", "J", "H", ...]},
+  {["h", "b", "m", "D", "D", "m", "w", "n", "n", ...],
+   ["j", "N", "r", "r", "W", "w", "L", "N", ...]},
+  {["d", "M", "r", "g", "v", "c", "Q", "q"], ["d", "j", "l", "B", "L", "l", "f", ...]},
+  {["H", "z", "z", "P", "S", "r", "c", ...], ["t", "m", "b", "b", "b", "R", ...]},
+  {["R", "w", "t", "v", "d", "P", ...], ["T", "Q", "m", "H", "H", ...]},
+  {["F", "j", "V", "S", "j", ...], ["n", "F", "Q", "n", ...]},
+  {["V", "C", "V", "V", ...], ["d", "l", "v", ...]},
+  {["f", "m", "P", ...], ["z", "h", ...]},
+  {["s", "W", ...], ["Q", ...]},
+  {["t", ...], [...]},
+  {[...], ...},
+  {...},
+  ...
+]
+```
+
+Para facilitar o cálculo das prioridades, criamos um mapa com todas as letras maiúsculas e minúsculas e seus respectivos valores.
+
+```elixir
+lowercase_items =
+  ?a..?z
+  |> Enum.map(fn number -> [to_string([number]), number - 96] end)
+
+item_priorities =
+  ?A..?Z
+  |> Enum.map(fn number -> [to_string([number]), number - 38] end)
+  |> Enum.concat(lowercase_items)
+  |> List.flatten()
+  |> Enum.chunk_every(2)
+  |> Map.new(fn [key, value] -> {key, value} end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "W" => 49,
+  "X" => 50,
+  "k" => 11,
+  "w" => 23,
+  "G" => 33,
+  "D" => 30,
+  "Q" => 43,
+  "K" => 37,
+  "F" => 32,
+  "C" => 29,
+  "i" => 9,
+  "v" => 22,
+  "q" => 17,
+  "g" => 7,
+  "e" => 5,
+  "c" => 3,
+  "T" => 46,
+  "Y" => 51,
+  "V" => 48,
+  "l" => 12,
+  "J" => 36,
+  "U" => 47,
+  "B" => 28,
+  "z" => 26,
+  "a" => 1,
+  "p" => 16,
+  "f" => 6,
+  "h" => 8,
+  "r" => 18,
+  "L" => 38,
+  "S" => 45,
+  "O" => 41,
+  "R" => 44,
+  "j" => 10,
+  "o" => 15,
+  "H" => 34,
+  "E" => 31,
+  "u" => 21,
+  "s" => 19,
+  "n" => 14,
+  "b" => 2,
+  "Z" => 52,
+  "N" => 40,
+  "A" => 27,
+  "y" => 25,
+  "M" => 39,
+  "t" => 20,
+  "m" => 13,
+  "I" => 35,
+  "P" => 42,
+  ...
+}
+```
+
+### Calculando a pontuação dos itens que estão em ambos compartimentos
+
+Agora basta descobrir quais são os itens que se repetem nos dois compartimentos de cada mochila, identificar sua prioridade de acordo com o mapa que criamos na etapa anterior (`item_priorities`) e somar as pontuações.
+
+```elixir
+rucksacks
+|> Enum.map(fn {compartment1, compartment2} ->
+  Enum.filter(compartment1, fn item1 ->
+    Enum.any?(compartment2, fn item2 -> item1 == item2 end)
+  end)
+end)
+|> Enum.flat_map(fn rucksack -> Enum.take(rucksack, 1) end)
+|> Enum.map(fn item -> Map.get(item_priorities, item) end)
+|> Enum.sum()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+8176
+```
+
+### Estrela 2: Grupos de 3 Elfos
+
+<!-- livebook:{"break_markdown":true} -->
+
+O algoritmo vai funcionar de forma muito parecida. A única mudança aqui é que ao invés de comparar 2 compartimentos de cada mochila, vamos comparar 3 mochilas por vez.
+
+```elixir
+elf_groups =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.chunk_every(3)
+  |> Enum.map(fn [elf1, elf2, elf3] ->
+    String.split(elf1, "", trim: true)
+    |> Enum.filter(fn item ->
+      String.contains?(elf2, item) and String.contains?(elf3, item)
+    end)
+  end)
+  |> Enum.flat_map(fn item -> Enum.take(item, 1) end)
+  |> Enum.map(fn item -> Map.get(item_priorities, item) end)
+  |> Enum.sum()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+2689
+```

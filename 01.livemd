@@ -1,0 +1,49 @@
+# Dia 1 - Elfos com mais comida
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.7.0"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("Dados de Entrada")
+```
+
+### Agrupando as mochilas dos elfos
+
+Aqui basta separar a entrada a cada quebra de linha e usar a função `Enum.chunk_by` para criar subgrupos (os elfos) baseado nas linhas em branco do arquivo de entrada.
+
+Aí é só transformar tudo em inteiro, somar as calorias de cada mochila e correr pro abraço.
+
+```elixir
+max_food =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.chunk_by(fn element -> element == "" end)
+  |> Enum.filter(fn element -> element != [""] end)
+  |> Enum.map(fn foods -> Enum.map(foods, &String.to_integer/1) end)
+  |> Enum.map(&Enum.sum/1)
+  |> Enum.max()
+```
+
+### Encontrando a soma das três mochilas mais calóricas
+
+Basicamente o mesmo procedimento, mas dessa vez ao invés de buscar apenas o valor máximo com a função `Enum.max` basta ordenar as mochilas de forma decrescente e somar as calorias das três primeiras posições.
+
+```elixir
+top_3_foods =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.chunk_by(fn element -> element == "" end)
+  |> Enum.filter(fn element -> element != [""] end)
+  |> Enum.map(fn foods -> Enum.map(foods, &String.to_integer/1) end)
+  |> Enum.map(&Enum.sum/1)
+  |> Enum.sort(:desc)
+  |> Enum.take(3)
+  |> Enum.sum()
+```

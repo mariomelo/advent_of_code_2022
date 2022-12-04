@@ -1,0 +1,53 @@
+# Dia 4 - Limpeza do acampamento
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.7.0"}
+])
+```
+
+## Leitura do arquivo de entrada
+
+```elixir
+input = Kino.Input.textarea("Arquivo de entrada")
+```
+
+### Lendo o arquivo de entrada
+
+Aqui seria interessante termos tuplas para representar os pares de elfos, enquanto os setores de cada elfo seriam representados por uma lista de inteiros:
+
+```elixir
+elf_sectors =
+  input
+  |> Kino.Input.read()
+  |> String.split(["\n", ",", "-"])
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.chunk_every(4)
+  |> Enum.map(fn [r1_start, r1_end, r2_start, r2_end] ->
+    {r1_start..r1_end, r2_start..r2_end}
+  end)
+```
+
+### Estrela 1: Identificando setores que contêm outros
+
+Agora que temos os setores em formato `Range` armazenados na variável `elf_sectors`, basta filtrar a lista para identificar quais pares de elfos trabalham em uma situação onde o primeiro setor contém o segundo ou vice-versa.
+
+```elixir
+Enum.filter(elf_sectors, fn {sector1, sector2} ->
+  first_elf_sectors = Enum.to_list(sector1)
+  second_elf_sectors = Enum.to_list(sector2)
+  first_elf_sectors -- second_elf_sectors == [] or second_elf_sectors -- first_elf_sectors == []
+end)
+|> Enum.count()
+```
+
+### Estrela 2: Identificando setores que possuem alguma interseção
+
+Como os setores foram armazenados em `Range`, basta usar a função `Range.disjoint?/2` (que retorna `true` quando não há interseção entre dois `Range`) para filtrar a lista:
+
+```elixir
+Enum.filter(elf_sectors, fn {sector1, sector2} ->
+  not Range.disjoint?(sector1, sector2)
+end)
+|> Enum.count()
+```
