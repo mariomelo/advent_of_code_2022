@@ -1,0 +1,348 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Untitled notebook
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.7.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Dia 5 - Pilhas de suprimentos
+
+```elixir
+input = Kino.Input.textarea("Arquivo de entrada")
+```
+
+### Lendo o arquivo de entrada
+
+#### Lendo os movimentos
+
+A leitura dos movimentos é simples: cada linha tem três números que seguen sempre a mesma ordem: `quantidade`, `pilha de origem` e `pilha de destino`.
+
+Então basta separar a String nas qubras de linha e nas palavras `move`, `to`, e `from` para poder ter apenas números. Depois disso, agrupamos a lista de números em grupos de 3, que representam respectivamente `quantidade`, `pilha de origem` e `pilha de destino`.
+
+```elixir
+initial_data = Kino.Input.read(input)
+
+[initial_position, movements] = String.split(initial_data, "\n\n")
+
+movements =
+  movements
+  |> String.split(["\n", "move ", " to ", " from "], trim: true)
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.chunk_every(3)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  [2, 7, 2],
+  [1, 4, 8],
+  [2, 1, 9],
+  [4, 6, 5],
+  [1, 7, 6],
+  [2, 1, 4],
+  '\a\b\t',
+  [7, 4, 5],
+  [4, 2, 4],
+  [1, 5, 9],
+  [14, 5, 4],
+  [1, 3, 8],
+  [5, 4, 8],
+  [1, 2, 5],
+  [2, 4, 1],
+  [6, 8, 1],
+  [1, 8, 6],
+  [1, 2, 5],
+  [5, 3, 7],
+  [2, 6, 3],
+  [2, 4, 7],
+  [3, 3, 9],
+  [7, 4, 1],
+  [1, 6, 9],
+  [2, 6, 1],
+  [3, 5, 2],
+  [1, 1, 8],
+  [21, 9, 1],
+  [1, 4, 2],
+  [7, 7, 2],
+  [1, 4, 2],
+  [23, 1, 5],
+  [5, 5, 1],
+  [1, 3, 6],
+  [1, 6, 3],
+  [12, 1, 6],
+  [1, 3, 6],
+  [2, 1, 8],
+  [1, 9, 3],
+  [2, 8, 1],
+  [2, 1, 8],
+  [1, 1, 3],
+  [2, 3, 1],
+  [2, 8, 1],
+  [3, 6, 1],
+  [1, 8, 7],
+  [4, 6, 2],
+  [3, 6, ...],
+  [2, ...],
+  [...],
+  ...
+]
+```
+
+### Lendo a pilha inicial de containers
+
+Cada coluna do arquivo de entrada é representada por 4 caracteres, então a primeira coisa que precisamos fazer é agrupar cada linha em uma lista de strings de 4 caracteres.
+
+```elixir
+containers =
+  initial_position
+  |> String.split("\n")
+  |> Enum.map(fn line -> String.split(line, "", trim: true) end)
+  |> Enum.map(fn line -> Enum.chunk_every(line, 4) end)
+  |> Enum.map(fn line -> Enum.map(line, &Enum.join/1) end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  ["    ", "    ", "[H] ", "    ", "    ", "[S] ", "    ", "    ", "[D]"],
+  ["    ", "[S] ", "[C] ", "    ", "    ", "[C] ", "    ", "[Q] ", "[L]"],
+  ["    ", "[C] ", "[R] ", "[Z] ", "    ", "[R] ", "    ", "[H] ", "[Z]"],
+  ["    ", "[G] ", "[N] ", "[H] ", "[S] ", "[B] ", "    ", "[R] ", "[F]"],
+  ["[D] ", "[T] ", "[Q] ", "[F] ", "[Q] ", "[Z] ", "    ", "[Z] ", "[N]"],
+  ["[Z] ", "[W] ", "[F] ", "[N] ", "[F] ", "[W] ", "[J] ", "[V] ", "[G]"],
+  ["[T] ", "[R] ", "[B] ", "[C] ", "[L] ", "[P] ", "[F] ", "[L] ", "[H]"],
+  ["[H] ", "[Q] ", "[P] ", "[L] ", "[G] ", "[V] ", "[Z] ", "[D] ", "[B]"],
+  [" 1  ", " 2  ", " 3  ", " 4  ", " 5  ", " 6  ", " 7  ", " 8  ", " 9 "]
+]
+```
+
+Como agora temos uma matriz quadrada e podemos usar a função `Enum.zip/1` para transpô-la. Agora, cada linha da lista representa uma pilha de containers.
+
+```elixir
+stack_list =
+  containers
+  |> Enum.zip()
+  |> Enum.map(&Tuple.to_list/1)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  ["    ", "    ", "    ", "    ", "[D] ", "[Z] ", "[T] ", "[H] ", " 1  "],
+  ["    ", "[S] ", "[C] ", "[G] ", "[T] ", "[W] ", "[R] ", "[Q] ", " 2  "],
+  ["[H] ", "[C] ", "[R] ", "[N] ", "[Q] ", "[F] ", "[B] ", "[P] ", " 3  "],
+  ["    ", "    ", "[Z] ", "[H] ", "[F] ", "[N] ", "[C] ", "[L] ", " 4  "],
+  ["    ", "    ", "    ", "[S] ", "[Q] ", "[F] ", "[L] ", "[G] ", " 5  "],
+  ["[S] ", "[C] ", "[R] ", "[B] ", "[Z] ", "[W] ", "[P] ", "[V] ", " 6  "],
+  ["    ", "    ", "    ", "    ", "    ", "[J] ", "[F] ", "[Z] ", " 7  "],
+  ["    ", "[Q] ", "[H] ", "[R] ", "[Z] ", "[V] ", "[L] ", "[D] ", " 8  "],
+  ["[D]", "[L]", "[Z]", "[F]", "[N]", "[G]", "[H]", "[B]", " 9 "]
+]
+```
+
+Agora precisamos primeiro eliminar os espaços vazios de cada pilha, afinal os containers não voam 😂.
+
+```elixir
+clean_stack_list =
+  stack_list
+  |> Enum.map(fn line -> Enum.filter(line, fn item -> String.trim(item) != "" end) end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  ["[D] ", "[Z] ", "[T] ", "[H] ", " 1  "],
+  ["[S] ", "[C] ", "[G] ", "[T] ", "[W] ", "[R] ", "[Q] ", " 2  "],
+  ["[H] ", "[C] ", "[R] ", "[N] ", "[Q] ", "[F] ", "[B] ", "[P] ", " 3  "],
+  ["[Z] ", "[H] ", "[F] ", "[N] ", "[C] ", "[L] ", " 4  "],
+  ["[S] ", "[Q] ", "[F] ", "[L] ", "[G] ", " 5  "],
+  ["[S] ", "[C] ", "[R] ", "[B] ", "[Z] ", "[W] ", "[P] ", "[V] ", " 6  "],
+  ["[J] ", "[F] ", "[Z] ", " 7  "],
+  ["[Q] ", "[H] ", "[R] ", "[Z] ", "[V] ", "[L] ", "[D] ", " 8  "],
+  ["[D]", "[L]", "[Z]", "[F]", "[N]", "[G]", "[H]", "[B]", " 9 "]
+]
+```
+
+E por último, para facilitar a manipulação dos containers, faz sentido transformar a lista em um mapa onde o índice é o número da pilha de containers.
+
+```elixir
+stack_map =
+  clean_stack_list
+  |> Enum.map(&Enum.reverse/1)
+  |> Enum.map(fn [column | stack] ->
+    {String.to_integer(String.trim(column)), Enum.reverse(stack)}
+  end)
+  |> Map.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  1 => ["[D] ", "[Z] ", "[T] ", "[H] "],
+  2 => ["[S] ", "[C] ", "[G] ", "[T] ", "[W] ", "[R] ", "[Q] "],
+  3 => ["[H] ", "[C] ", "[R] ", "[N] ", "[Q] ", "[F] ", "[B] ", "[P] "],
+  4 => ["[Z] ", "[H] ", "[F] ", "[N] ", "[C] ", "[L] "],
+  5 => ["[S] ", "[Q] ", "[F] ", "[L] ", "[G] "],
+  6 => ["[S] ", "[C] ", "[R] ", "[B] ", "[Z] ", "[W] ", "[P] ", "[V] "],
+  7 => ["[J] ", "[F] ", "[Z] "],
+  8 => ["[Q] ", "[H] ", "[R] ", "[Z] ", "[V] ", "[L] ", "[D] "],
+  9 => ["[D]", "[L]", "[Z]", "[F]", "[N]", "[G]", "[H]", "[B]"]
+}
+```
+
+## Estrela 1: Movendo um container por vez
+
+É aqui que o esforço feito para organizar bem o arquivo de entrada se paga. À partir da pilha original, vamos usar a função `Enum.reduce/3` para aplicar cada movimento às pilhas de containers.
+
+Como movemos um container por vez, usamos a função `Enum.reverse/1` para inverter a ordem dos containers movimentados.
+
+**Exemplo:**
+
+`ABC` ->  `D`
+
+`BC` -> `AD`
+
+`C` -> `BAD`
+
+Ou seja, `AB` virou `BA` após a movimentação.
+
+```elixir
+final_stack =
+  Enum.reduce(movements, stack_map, fn [amount, origin, dest], current_stack ->
+    source_stack = Map.get(current_stack, origin)
+    destination_stack = Map.get(current_stack, dest)
+
+    moved_stack =
+      source_stack
+      |> Enum.take(amount)
+      |> Enum.reverse()
+
+    new_origin = Enum.drop(source_stack, amount)
+    new_dest = Enum.concat(moved_stack, destination_stack)
+
+    %{
+      current_stack
+      | origin => new_origin,
+        dest => new_dest
+    }
+  end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  1 => ["[R] "],
+  2 => ["[F] "],
+  3 => ["[F] "],
+  4 => ["[F] ", "[S] ", "[P] ", "[F] ", "[C] ", "[Z] ", "[H] ", "[T] ", "[R] ", "[Z] ", "[L] ",
+   "[W] ", "[C] ", "[G] ", "[Z]", "[B]", "[Q] ", "[H] ", "[N] ", "[Q] ", "[T] ", "[F]", "[C] ",
+   "[V] ", "[L]", "[S] ", "[J] ", "[N] "],
+  5 => ["[W] ", "[R] ", "[D] "],
+  6 => ["[B] ", "[H]", "[L] ", "[Q] ", "[G]", "[H] ", "[Z] ", "[D] ", "[Z] ", "[R] ", "[Q] ",
+   "[Z] ", "[B] ", "[L] ", "[G] ", "[V] "],
+  7 => ["[P] "],
+  8 => ["[N]", "[D]"],
+  9 => ["[S] ", "[H] ", "[C] "]
+}
+```
+
+Agora basta pegar a letra do primeiro container de cada pilha e ver o resultado final.
+
+```elixir
+final_stack
+|> Map.values()
+|> Enum.flat_map(fn stack -> Enum.take(stack, 1) end)
+|> Enum.join()
+|> String.replace([" ", "]", "["], "")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"RFFFWBPNS"
+```
+
+## Estrela 2: Movendo vários containers por vez
+
+Basicamente basta não inverter mais as pilhas movimentadas. Então é só remover o `Enum.reverse/1`.
+
+**Exemplo:**
+
+`ABC` ->  `D`
+
+`C` -> `ABD`
+
+Ou seja, `AB` continou sendo `AB` após a movimentação.
+
+```elixir
+final_stack_star_2 =
+  Enum.reduce(movements, stack_map, fn [amount, origin, dest], current_stack ->
+    source_stack = Map.get(current_stack, origin)
+    destination_stack = Map.get(current_stack, dest)
+
+    moved_stack =
+      source_stack
+      |> Enum.take(amount)
+
+    # |> Enum.reverse()
+
+    new_origin = Enum.drop(source_stack, amount)
+    new_dest = Enum.concat(moved_stack, destination_stack)
+
+    %{
+      current_stack
+      | origin => new_origin,
+        dest => new_dest
+    }
+  end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  1 => ["[C] "],
+  2 => ["[Q] "],
+  3 => ["[Q] "],
+  4 => ["[B] ", "[F]", "[D]", "[V] ", "[N]", "[H]", "[G]", "[Q] ", "[N] ", "[W] ", "[Z] ", "[S] ",
+   "[N] ", "[R] ", "[R] ", "[Z] ", "[H] ", "[D] ", "[F] ", "[R] ", "[H] ", "[P] ", "[P] ", "[F] ",
+   "[Z] ", "[Q] ", "[Z]", "[L] "],
+  5 => ["[B]", "[C] ", "[L]"],
+  6 => ["[J] ", "[B] ", "[G] ", "[R] ", "[H] ", "[L] ", "[Z] ", "[G] ", "[S] ", "[W] ", "[D] ",
+   "[F] ", "[V] ", "[Z] ", "[L] ", "[H] "],
+  7 => ["[F] "],
+  8 => ["[C] ", "[T] "],
+  9 => ["[S] ", "[T] ", "[C] "]
+}
+```
+
+É só repetir o que fizemos para a estrela um: basta pegar a letra do primeiro container de cada pilha e ver o resultado final.
+
+```elixir
+final_stack_star_2
+|> Map.values()
+|> Enum.flat_map(fn stack -> Enum.take(stack, 1) end)
+|> Enum.join()
+|> String.replace([" ", "]", "["], "")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"CQQBBJFCS"
+```
