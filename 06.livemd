@@ -1,0 +1,97 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 6 - Problemas de Ajuste
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Resolving Hex dependencies...
+Dependency resolution completed:
+New:
+  kino 0.8.0
+  table 0.1.2
+* Getting kino (Hex package)
+* Getting table (Hex package)
+==> table
+Compiling 5 files (.ex)
+Generated table app
+==> kino
+Compiling 37 files (.ex)
+Generated kino app
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Leitura do arquivo de entrada
+
+```elixir
+input = Kino.Input.textarea("Arquivo de Entrada")
+```
+
+## Estrela 1: Sinal de 4 caracteres
+
+A função `Enum.chunk_every/3` vai basicamente resolver o problema aqui. Ela funciona como uma _sliding window_, e vai retornar uma lista com todas as sequências de 4 caracteres presentes na string de entrada.
+
+**Exemplo**:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+tamanho_do_sinal = 4
+tamanho_do_passo = 1
+Enum.chunk_every("ABCDEFG", tamanho_do_sinal, tamanho_do_passo)
+```
+
+O resultado do código acima seria: `["ABCD", "BCDE", "CDEF", "DEFG"]`
+
+Com isso, basta agora identificar o índice do item da lista que não possui caracteres repetidos e somá-lo ao tamanho do sinal.
+
+```elixir
+signal_size = 4
+
+signal_index =
+  Kino.Input.read(input)
+  |> String.split("", trim: true)
+  |> Enum.chunk_every(signal_size, 1)
+  |> Enum.find_index(fn signal -> Enum.uniq(signal) == signal end)
+
+signal_index + signal_size
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1198
+```
+
+## Estrela 2: Sinal de 14 caracteres
+
+A estrela 2 é exatamente o mesmo problema, mas com um tamanho de sinal diferente. Então basta mudar a variável `signal_size` para `14` e rodar o código novamente.
+
+```elixir
+signal_size = 14
+
+signal_index =
+  Kino.Input.read(input)
+  |> String.split("", trim: true)
+  |> Enum.chunk_every(signal_size, 1)
+  |> Enum.find_index(fn signal -> Enum.uniq(signal) == signal end)
+
+signal_index + signal_size
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+3120
+```
