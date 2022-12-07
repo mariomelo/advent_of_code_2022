@@ -1,0 +1,246 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 7 - Sem espaço disponível
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Arquivo de Entrada
+
+```elixir
+input = Kino.Input.textarea("Arquivo de entrada")
+```
+
+A leitura do arquivo de entrada é simples: basta armaezar umas lista com as palavras de cada comando. Essa separação por palavras será útil na hora de interpretar cada comando.
+
+```elixir
+command_list =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line -> String.split(line, " ") |> List.to_tuple() end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  {"$", "cd", "/"},
+  {"$", "ls"},
+  {"187585", "dgflmqwt.srm"},
+  {"dir", "gnpd"},
+  {"200058", "hbnlqs"},
+  {"dir", "jsv"},
+  {"dir", "mfhzl"},
+  {"dir", "nljtr"},
+  {"dir", "nwzp"},
+  {"61949", "qdswp.wfj"},
+  {"21980", "rbq.hpj"},
+  {"dir", "rfwwwgr"},
+  {"dir", "sbnhc"},
+  {"dir", "zhfl"},
+  {"136762", "zwg"},
+  {"$", "cd", "gnpd"},
+  {"$", "ls"},
+  {"dir", "dcqq"},
+  {"dir", "dnscfz"},
+  {"dir", "dwqbhgc"},
+  {"dir", "lsrb"},
+  {"167581", "ndwfr.pbv"},
+  {"dir", "pbgrdvmc"},
+  {"dir", "sbnhc"},
+  {"144703", "sct"},
+  {"dir", "smfhldss"},
+  {"$", "cd", "dcqq"},
+  {"$", "ls"},
+  {"dir", "bfdng"},
+  {"155230", "mfhzl.bpw"},
+  {"dir", "mhpqqq"},
+  {"dir", "mpbpcv"},
+  {"24140", "mrrznmvr.mmz"},
+  {"$", "cd", "bfdng"},
+  {"$", "ls"},
+  {"dir", "hjlch"},
+  {"dir", "sbnhc"},
+  {"$", "cd", "hjlch"},
+  {"$", "ls"},
+  {"239759", "sct"},
+  {"$", "cd", ".."},
+  {"$", "cd", "sbnhc"},
+  {"$", "ls"},
+  {"221334", "hbnlqs"},
+  {"$", "cd", ".."},
+  {"$", "cd", ".."},
+  {"$", "cd", "mhpqqq"},
+  {"$", "ls"},
+  {"250305", ...},
+  {...},
+  ...
+]
+```
+
+## Calculando o tamanho de cada pasta
+
+Aqui vamos usar a função `Enum.reduce/3` para acumular os resultados dos comandos em uma estrutura que contém uma **lista de diretórios pais** e um **mapa com o tamanho de cada diretório**.
+
+**Por exemplo:**
+
+`cd jogos` -> `diretorios: ["jogos"], tamanhos: %{jogos: 0`
+
+`dir csgo` -> `diretorios: ["jogos"], tamanhos: %{jogos: 0}`
+
+`12 teste.txt` -> `diretorios: ["jogos"], tamanhos: %{jogos: 12}`
+
+Continuando: quando encontramos um subdiretório, ele é adicionado na lista de diretorios, e todos os arquivos deste subdiretório passam a somar também o tamanho dos diretórios pais.
+
+`cd csgo` -> `diretorios: ["jogos", "jogos/csgo], tamanhos: %{jogos: 12, "jogos/csgo": 0}`
+
+`3400 csgo.exe` -> `diretorios: ["jogos", "jogos/csgo], tamanhos: %{jogos: 3412, "jogos/csgo": 3400}`
+
+No exemplo, o arquivo `csgo.exe` soma `3400` tanto ao diretório `jogos/csgo` quanto ao diretório `jogos`.
+
+```elixir
+{_, all_dir_sizes} =
+  Enum.reduce(command_list, {[], %{}}, fn command, {current_dir_tree, dir_sizes} ->
+    case command do
+      # Comandos de navegação apenas alteram a lista de pastas e subpastas
+      {"$", "cd", "/"} ->
+        {["/"], dir_sizes}
+
+      {"$", "cd", ".."} ->
+        {Enum.drop(current_dir_tree, 1), dir_sizes}
+
+      {"$", "cd", dir} ->
+        current_path = Enum.join([dir | current_dir_tree]) |> String.reverse()
+
+        {[current_path | current_dir_tree], dir_sizes}
+
+      # Comandos 'ls' e linhas de informação 'dir' não afetam o resultado
+      {"$", _} ->
+        {current_dir_tree, dir_sizes}
+
+      {"dir", _} ->
+        {current_dir_tree, dir_sizes}
+
+      # O tamanho de cada arquivo é somado ao tamanho de todas as pastas acima dele
+      {file_size, _file_name} ->
+        new_dir_sizes =
+          Enum.map(current_dir_tree, fn dir ->
+            {dir, String.to_integer(file_size) + Map.get(dir_sizes, dir, 0)}
+          end)
+          |> Map.new()
+
+        {current_dir_tree, Map.merge(dir_sizes, new_dir_sizes)}
+
+      # Qualquer outro comando não deve afetar o resultado
+      _ ->
+        {current_dir_tree, dir_sizes}
+    end
+  end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{["/zhfl/vnlmlq/lfhz/vnlmlq/zhfl/qlmlnv/lfhz/rdvq/zhfl/vnlmlq/lfhz/qlmlnv/zhfl/qlmlnv/lfhz/chnbs",
+  "/zhfl/vnlmlq/lfhz/vnlmlq/zhfl/qlmlnv/lfhz/qvdr", "/zhfl/vnlmlq/lfhz/qlmlnv", "/zhfl/qlmlnv",
+  "/lfhz", "/"],
+ %{
+   "/rtjln" => 2395363,
+   "/zhfl/vnlmlq/lfhz/vnlmlq/zhfl/qlmlnv/lfhz/qnv/zhfl/vnlmlq/lfhz/qlmlnv/zhfl/qlmlnv/lfhz/srdr" => 953565,
+   "/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/ztn" => 234879,
+   "/zhfl/jvnlhq/lfhz/sdrrzp/zhfl/qhlnvj/lfhz/chnbs" => 156705,
+   "/zhfl/jvnlhq/lfhz/sdrrzp/zhfl/qhlnvj/lfhz/qqcd" => 340987,
+   "/nljtr/slztzqd/rtjln/vnlmlq/nljtr/dqztzls/rtjln/mfhzl/nljtr/slztzqd/rtjln/qlmlnv/nljtr/dqztzls/rtjln/lnprpbjr" => 244896,
+   "/dpng" => 7514743,
+   "/jsv/rhstw/vsj/lgjrq" => 119344,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/ftjcr/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hljmrwz" => 32583,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/jpgwnjqw" => 780247,
+   "/gnpd/smfhldss/dpng/jqssbfw" => 134050,
+   "/jsv/bwc/vsj/wtrznbrc" => 2401986,
+   "/zhfl/vnlmlq/lfhz/lbh/zhfl/qlmlnv/lfhz/tfl" => 531698,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/btqsh/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/ljrjpg/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hsqtb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/mfhzl/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/btqsh/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/gpjrjl/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hsqtb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/dcqq/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/btqsh/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/ljrjpg/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hsqtb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/lzhfm/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/btqsh/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/gpjrjl/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hsqtb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/vjhl/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/btqsh/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/ljrjpg/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hsqtb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/mfhzl/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/btqsh/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/gpjrjl/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hsqtb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/qqcd/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/btqsh/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/ljrjpg/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hsqtb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/lzhfm/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/btqsh/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/gpjrjl/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/hsqtb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/lzmhbn" => 155454,
+   "/gnpd/dnscfz/dpng/fww" => 166550,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/vfdqq/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/chlgwgzq" => 275922,
+   "/rgwwwfr" => 362615,
+   "/zhfl/vnlmlq/lfhz/rhszw/zhfl/qlmlnv/lfhz/vnlmlq/zhfl/vnlmlq/lfhz/wzshr/zhfl/qlmlnv/lfhz/gtm" => 566485,
+   "/zhfl/vnlmlq/lfhz/rhszw/zhfl/qlmlnv/lfhz/vnlmlq/zhfl/vnlmlq/lfhz/wzshr/zhfl/qlmlnv/lfhz/mfhzl/zhfl/vnlmlq/lfhz/rhszw/zhfl/qlmlnv/lfhz/qlmlnv/zhfl/vnlmlq/lfhz/wzshr/zhfl/qlmlnv/lfhz/tzccpc" => 209755,
+   "/jsv/qqcd" => 364426,
+   "/jsv/rhstw/vsj/rzqp/jsv/wtshr/vsj/hwr" => 285057,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/vnlmlq/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/vzvnbwq" => 1302548,
+   "/zhfl/vnlmlq/lfhz/rhszw/zhfl/qlmlnv/lfhz/vnlmlq/zhfl/vnlmlq/lfhz/wzshr/zhfl/qlmlnv/lfhz/lzhfm" => 593068,
+   "/gnpd/sbnhc/dpng/vmslnrmc/gnpd/chnbs/dpng/swpqcl" => 509862,
+   "/zhfl/vnlmlq/lfhz/lbh/zhfl/qlmlnv/lfhz/lft/zhfl/vnlmlq/lfhz/hbl/zhfl/qlmlnv/lfhz/dcqq/zhfl/vnlmlq/lfhz/lbh/zhfl/qlmlnv/lfhz/tfl/zhfl/vnlmlq/lfhz/hbl/zhfl/qlmlnv/lfhz/pgt" => 271647,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/ftjcr/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/glfptjpb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/rcjtf/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/rcppndf" => 692136,
+   "/nwzp/qlmlnv" => 87553,
+   "/jsv/bwc/vsj/crbnzrtw/jsv/cwb/vsj/sbnhc/jsv/bwc/vsj/wtrznbrc/jsv/cwb/vsj/dbb/jsv/bwc/vsj/crbnzrtw/jsv/cwb/vsj/chnbs/jsv/bwc/vsj/wtrznbrc/jsv/cwb/vsj/mtrgbbr" => 304685,
+   "/sbnhc/mbhpvwd" => 21955,
+   "/zhfl/jvnlhq/lfhz/njmdrb/zhfl/qhlnvj/lfhz/mfhzl/zhfl/jvnlhq/lfhz/brdmjn/zhfl/qhlnvj/lfhz/qlmlnv" => 491304,
+   "/zhfl/vnlmlq/lfhz/hbl" => 851442,
+   "/nljtr/slztzqd/rtjln/vnlmlq/nljtr/dqztzls/rtjln/lzhfm" => 1136945,
+   "/zhfl/vnlmlq/lfhz/vnlmlq/zhfl/qlmlnv/lfhz/rdvq/zhfl/vnlmlq/lfhz/qlmlnv/zhfl/qlmlnv/lfhz/chnbs" => 265434,
+   "/zhfl/vnlmlq/lfhz/vnlmlq/zhfl/qlmlnv/lfhz/qvdr" => 673626,
+   "/gnpd/sbnhc/dpng/qbs" => 15689,
+   "/gnpd/pbgrdvmc/dpng/qmqclj" => 24876,
+   "/nwzp/lzhfm" => 107297,
+   "/zhfl/jvnlhq/lfhz/njmdrb/zhfl/qhlnvj/lfhz/lzhfm" => 950427,
+   "/gnpd/ssdlhfms" => 134050,
+   "/gnpd/dcqq/dpng/mhpqqq/gnpd/qqcd/dpng/zhqq" => 148009,
+   "/chnbs" => 254904,
+   "/gnpd/dcqq/dpng/bfdng/gnpd/qqcd/dpng/chnbs" => 221334,
+   "/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/fnvjv/zhfl/vnlmlq/lfhz/cgj/zhfl/qlmlnv/lfhz/nwlbbwtq/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/vjvnf/zhfl/vnlmlq/lfhz/cgj/zhfl/qlmlnv/lfhz/qcm/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/fnvjv/zhfl/vnlmlq/lfhz/cgj/zhfl/qlmlnv/lfhz/qtwbblwn/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/vjvnf/zhfl/vnlmlq/lfhz/cgj/zhfl/qlmlnv/lfhz/sbnhc/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/fnvjv/zhfl/vnlmlq/lfhz/cgj/zhfl/qlmlnv/lfhz/nwlbbwtq/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/vjvnf/zhfl/vnlmlq/lfhz/cgj/zhfl/qlmlnv/lfhz/mcq/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/fnvjv/zhfl/vnlmlq/lfhz/cgj/zhfl/qlmlnv/lfhz/qtwbblwn/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/vjvnf/zhfl/vnlmlq/lfhz/cgj/zhfl/qlmlnv/lfhz/nvv" => 198277,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/ftjcr/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/glfptjpb/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/rcjtf/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/gdphvds/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/ftjcr/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/bpjtpflg/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/rcjtf/jsv/bwc/vsj/hlchrwj/jsv/cwb/vsj/bdpd" => 342610,
+   "/zhfl/vnlmlq/lfhz/jgc/zhfl/qlmlnv/lfhz/vjvnf" => 2135740,
+   "/zhfl/vnlmlq/lfhz/rhszw/zhfl/qlmlnv/lfhz/vnlmlq/zhfl/vnlmlq/lfhz/wzshr/zhfl/qlmlnv/lfhz/wpf" => 143105,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/rcjtf" => 2912538,
+   "/jsv/bwc/vsj/jwrhclh/jsv/cwb/vsj/qlmlnv" => 5692679,
+   ...
+ }}
+```
+
+## Estrela 1: Diretórios menores que 100K
+
+Com a estrutura que criamos, fica fácil filtrar os diretórios que são menores que 100K e somar o tamanho de cada um deles:
+
+```elixir
+all_dir_sizes
+|> Map.values()
+|> Enum.filter(fn value -> value <= 100_000 end)
+|> Enum.sum()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1428881
+```
+
+## Estrela 2: Espaço para atualização
+
+Aqui basta calcular o espaço necessário para atualização, filtrar a lista de diretórios em busca daqueles que são maiores do que o resultado encontrado e selecionar menor deles. :)
+
+```elixir
+unused_space = 70_000_000 - Map.get(all_dir_sizes, "/")
+necessary_space = 30_000_000 - unused_space
+
+{dir, _size} =
+  all_dir_sizes
+  |> Enum.filter(fn {_dir, size} -> size > necessary_space end)
+  |> Enum.sort(fn {_dir1, size1}, {_dir2, size2} -> size1 < size2 end)
+  |> Enum.at(0)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{"/jsv/bwc/vsj/hlchrwj", 10475598}
+```
