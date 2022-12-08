@@ -1,0 +1,210 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 8 - Casa da Árvore
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Leitura do arquivo de entrad
+
+```elixir
+input = Kino.Input.textarea("Arquivo de entrada")
+```
+
+## Lendo o arquivo de entrada
+
+Como vamos precisar conferir as linhas e as colunas das árvores, vamos armazenar as informações em duas listas separadas: uma  lista de linhas e outra linha de colunas.
+
+```elixir
+tree_lines =
+  Kino.Input.read(input)
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line -> String.split(line, "", trim: true) end)
+  |> Enum.map(fn line -> Enum.map(line, &String.to_integer/1) end)
+
+tree_columns =
+  Enum.zip(tree_lines)
+  |> Enum.map(&Tuple.to_list/1)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  [2, 0, 2, 0, 1, 2, 0, 0, 1, 1, 3, 2, 2, 0, 2, 4, 4, 1, 2, 0, 2, 0, 4, 4, 2, 3, 1, 0, 5, 4, 0, 0,
+   4, 4, 5, 3, 3, 2, 4, 5, 2, 4, 4, 4, 4, 6, 3, 2, 3, ...],
+  [1, 3, 1, 1, 0, 3, 0, 1, 3, 0, 2, 2, 3, 2, 2, 1, 2, 4, 3, 3, 4, 4, 1, 5, 1, 4, 3, 5, 5, 2, 1, 2,
+   1, 3, 3, 2, 1, 3, 0, 5, 6, 5, 2, 6, 5, 5, 4, 5, ...],
+  [3, 2, 1, 3, 0, 2, 1, 0, 3, 1, 4, 2, 0, 0, 3, 0, 3, 1, 4, 3, 0, 4, 4, 2, 3, 2, 0, 2, 1, 3, 1, 0,
+   4, 3, 5, 3, 6, 3, 4, 6, 6, 5, 3, 1, 4, 3, 2, ...],
+  [3, 2, 0, 2, 0, 2, 2, 2, 1, 1, 3, 1, 4, 3, 4, 0, 4, 5, 3, 2, 2, 2, 0, 3, 1, 2, 5, 3, 3, 3, 5, 2,
+   1, 5, 0, 6, 2, 4, 0, 3, 4, 0, 6, 0, 3, 2, ...],
+  [0, 0, 3, 3, 2, 4, 1, 2, 1, 1, 1, 2, 0, 1, 3, 4, 5, 0, 0, 4, 2, 5, 5, 3, 2, 2, 2, 4, 0, 1, 5, 5,
+   0, 2, 4, 1, 3, 3, 1, 2, 2, 0, 2, 1, 0, ...],
+  [1, 3, 3, 3, 3, 1, 1, 2, 3, 3, 2, 3, 4, 1, 2, 1, 3, 3, 0, 1, 4, 3, 3, 1, 3, 1, 5, 0, 2, 4, 2, 6,
+   3, 6, 2, 1, 0, 1, 4, 5, 2, 2, 3, 5, ...],
+  [3, 1, 1, 4, 4, 0, 4, 0, 4, 0, 2, 4, 2, 4, 3, 1, 0, 3, 4, 0, 0, 4, 4, 5, 2, 1, 5, 5, 4, 1, 3, 2,
+   6, 2, 2, 2, 5, 1, 1, 2, 1, 5, 4, ...],
+  [1, 1, 0, 4, 1, 1, 0, 3, 4, 4, 1, 2, 3, 0, 0, 3, 3, 1, 3, 3, 0, 1, 5, 4, 6, 6, 2, 1, 6, 1, 6, 1,
+   1, 4, 5, 3, 2, 5, 0, 6, 6, 6, ...],
+  [1, 1, 4, 3, 2, 3, 3, 4, 0, 1, 3, 5, 3, 3, 5, 1, 3, 1, 2, 1, 3, 4, 0, 3, 2, 5, 3, 3, 2, 0, 5, 0,
+   1, 5, 1, 3, 1, 2, 3, 1, 2, ...],
+  [2, 1, 2, 2, 4, 4, 1, 2, 3, 4, 5, 2, 4, 3, 4, 1, 3, 3, 2, 3, 2, 4, 1, 2, 1, 5, 6, 0, 0, 4, 3, 4,
+   0, 6, 5, 2, 0, 2, 5, 1, ...],
+  [3, 0, 3, 2, 2, 1, 4, 1, 3, 3, 5, 0, 4, 1, 4, 2, 3, 1, 1, 3, 3, 3, 0, 1, 3, 0, 6, 5, 5, 3, 3, 5,
+   4, 0, 4, 6, 1, 4, 2, ...],
+  [0, 0, 3, 3, 3, 1, 4, 0, 0, 2, 3, 1, 2, 3, 0, 1, 0, 4, 3, 2, 6, 2, 3, 4, 2, 0, 3, 3, 1, 4, 4, 3,
+   4, 2, 6, 7, 4, 7, ...],
+  [0, 0, 2, 4, 3, 3, 4, 2, 5, 0, 0, 3, 5, 1, 3, 5, 2, 2, 6, 1, 2, 5, 3, 3, 4, 6, 1, 4, 1, 1, 1, 3,
+   2, 5, 4, 7, 1, ...],
+  [2, 4, 2, 0, 1, 3, 2, 0, 1, 0, 4, 2, 3, 3, 2, 3, 2, 6, 6, 1, 3, 3, 2, 0, 4, 2, 2, 2, 1, 1, 1, 2,
+   7, 4, 5, 6, ...],
+  [0, 3, 4, 4, 3, 5, 0, 3, 0, 1, 1, 0, 0, 3, 5, 4, 1, 6, 2, 0, 1, 5, 4, 0, 6, 2, 2, 6, 2, 2, 3, 4,
+   4, 4, 5, ...],
+  [1, 3, 3, 1, 2, 3, 4, 1, 4, 4, 0, 3, 2, 2, 5, 1, 4, 4, 4, 5, 6, 6, 5, 6, 2, 6, 4, 7, 6, 2, 1, 1,
+   1, 7, ...],
+  [4, 2, 0, 0, 5, 0, 5, 2, 0, 1, 3, 2, 0, 0, 5, 3, 3, 5, 2, 6, 1, 4, 2, 5, 3, 3, 6, 1, 5, 5, 2, 5,
+   5, ...],
+  [3, 3, 4, 0, 0, 2, 5, 2, 5, 0, 0, 3, 3, 5, 6, 1, 1, 0, 3, 3, 1, 1, 1, 5, 1, 1, 4, 6, 5, 6, 3, 7,
+   ...],
+  [1, 0, 2, 0, 4, 4, 5, 4, 5, 1, 4, 4, 4, 6, 6, 1, 0, 6, 4, 6, 3, 3, 2, 5, 1, 5, 7, 4, 3, 2, 6, ...],
+  [1, 1, 3, 4, 1, 3, 5, 0, 0, 4, 2, 4, 6, 5, 1, 1, 1, 6, 6, 4, 1, 4, 3, 7, 3, 2, 7, 5, 4, 2, ...],
+  [4, 0, 5, 2, 0, 1, 4, 2, 4, 2, 6, 2, 4, 5, 0, 5, 2, 2, 2, 3, 7, 3, 5, 6, 3, 2, 5, 7, 3, ...],
+  [3, 2, 5, 4, 3, 1, 4, 0, 5, 5, 5, 6, 6, 4, 2, 3, 6, 5, 5, 4, 7, 5, 1, 7, 4, 6, 5, 1, ...],
+  [2, 1, 2, 5, 3, 3, 2, 1, 5, 1, 5, 0, 5, 6, 0, 5, 3, 3, 2, 6, 1, 3, 1, 6, 7, 3, 2, ...],
+  [0, 3, 1, 0, 5, 3, 3, 4, 4, 1, 5, 4, 3, 6, 1, 2, 6, 7, 3, 5, 7, 1, 2, 5, 5, 3, ...],
+  [4, 3, 2, 1, 2, 4, 2, 3, 6, 5, 0, 1, 4, 2, 0, 6, 1, 1, 2, 3, 4, 6, 6, 6, 4, ...],
+  [4, 3, 0, 5, 2, 2, 1, 4, 2, 1, 2, 0, 2, 1, 2, 3, 1, 1, 5, 1, 1, 1, 3, 7, ...],
+  [4, 5, 3, 0, 4, 1, 6, 3, 5, 3, 0, 0, 3, 4, 1, 2, 2, 3, 7, 1, 6, 6, 1, ...],
+  [1, 3, 1, 4, 4, 2, 3, 5, 2, 5, 6, 5, 2, 4, 4, 7, 3, 4, 5, 6, 2, 7, ...],
+  [1, 0, 0, 5, 1, 0, 3, 6, 4, 2, 6, 3, 2, 6, 5, 3, 2, 5, 7, 2, 7, ...],
+  [0, 1, 0, 5, 4, 1, 2, 6, 2, 6, 0, 5, 4, 1, 7, 1, 4, 5, 2, 1, ...],
+  [4, 5, 2, 3, 3, 6, 2, 2, 2, 5, 5, 3, 3, 2, 2, 1, 1, 7, 7, ...],
+  [0, 1, 5, 2, 4, 1, 1, 6, 2, 0, 2, 1, 3, 7, 1, 7, 7, 3, ...],
+  [3, 1, 2, 1, 0, 5, 5, 2, 2, 3, 3, 6, 1, 1, 1, 5, 1, ...],
+  [3, 3, 4, 2, 3, 2, 2, 2, 2, 0, 4, 5, 7, 2, 2, 2, ...],
+  [2, 0, 2, 2, 0, 1, 0, 2, 0, 0, 5, 3, 7, 6, 6, ...],
+  [0, 4, 3, 6, 4, 0, 0, 2, 0, 2, 7, 1, 3, 3, ...],
+  [0, 1, 4, 6, 5, 5, 4, 2, 4, 5, 6, 1, 3, ...],
+  [1, 3, 3, 3, 4, 0, 4, 4, 0, 3, 3, 1, ...],
+  [3, 0, 4, 3, 1, 1, 6, 6, 3, 2, 2, ...],
+  [2, 6, 1, 1, 3, 1, 1, 1, 3, 1, ...],
+  [2, 0, 2, 6, 4, 0, 2, 0, 6, ...],
+  [5, 5, 0, 1, 3, 5, 4, 3, ...],
+  [5, 4, 5, 5, 2, 0, 0, ...],
+  [2, 0, 5, 4, 0, 6, ...],
+  [5, 6, 3, 0, 5, ...],
+  [3, 2, 3, 1, ...],
+  [1, 3, 6, ...],
+  [1, 3, ...],
+  [6, ...],
+  [...],
+  ...
+]
+```
+
+## Estrela 1: Contando as árvores visíveis
+
+Aqui vamos utilizar duas funções do módulo `Enum`:
+
+* A função `take/2` para pegar uma sublista de árvores que estão **antes** (esquerda ou acima) de uma determinada árvore
+* A função `drop/2` para pegar uma sublista de árvores que estão **depois** (direita ou abaixo) de uma determinada árvore
+
+Depois basta conferir se alguma dessas listas de árvores (esquerda, direita, abaixo ou acima) possuem apenas árvores menores do que a árvore que estamos avaliando.
+
+```elixir
+visible_trees =
+  for x <- 0..(length(tree_lines) - 1), y <- 0..(length(tree_columns) - 1), into: [] do
+    current_line = Enum.fetch!(tree_lines, x)
+    current_column = Enum.fetch!(tree_columns, y)
+    current_tree = Enum.fetch!(current_line, y)
+
+    left_trees = Enum.take(current_line, y)
+    right_trees = Enum.drop(current_line, y + 1)
+    up_trees = Enum.take(current_column, x)
+    down_trees = Enum.drop(current_column, x + 1)
+
+    Enum.max(left_trees, fn -> -1 end) < current_tree or
+      Enum.max(right_trees, fn -> -1 end) < current_tree or
+      Enum.max(up_trees, fn -> -1 end) < current_tree or
+      Enum.max(down_trees, fn -> -1 end) < current_tree
+  end
+
+Enum.count(visible_trees, fn is_visible -> is_visible end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1679
+```
+
+## Estrela 2: Árvore com a melhor vista
+
+Aqui o primeiro passo é inverter as listas de árvores à **esquerda** e **acima** para que as árvores mais próximas à árvore analisada apareçam primeiro em todas as quatro listas.
+
+Depois usamos a função `Enum.take_while/2` para contar quantas árvores menores do que a árvore avaliada existem até que uma árvore maior apareça. Como essa função não vai contar a última árvore, somamos 1 ao final da conta.
+
+### Por que usar a função `min/2`
+
+Em alguns casos será possível visualizar todas as árvores até a borda da floresta, e nesses casos não podemos somar 1 ao resultado final. Sendo assim, a função `min/2` é usada para garantir que:
+
+* Ou é possível ver todas as árvores em uma determinada direção até o final
+* Ou eu consigo ver todas as árvores menores que a atual **mais uma última árvore que cobre minha visão**, e por isso preciso somar 1.
+
+```elixir
+tree_scores =
+  for x <- 0..(length(tree_lines) - 1), y <- 0..(length(tree_columns) - 1), into: [] do
+    current_line = Enum.fetch!(tree_lines, x)
+    current_column = Enum.fetch!(tree_columns, y)
+    current_tree = Enum.fetch!(current_line, y)
+
+    left_trees = Enum.take(current_line, y) |> Enum.reverse()
+    right_trees = Enum.drop(current_line, y + 1)
+    up_trees = Enum.take(current_column, x) |> Enum.reverse()
+    down_trees = Enum.drop(current_column, x + 1)
+
+    left_score =
+      min(
+        length(left_trees),
+        length(Enum.take_while(left_trees, fn tree -> tree < current_tree end)) + 1
+      )
+
+    right_score =
+      min(
+        length(right_trees),
+        length(Enum.take_while(right_trees, fn tree -> tree < current_tree end)) + 1
+      )
+
+    up_score =
+      min(
+        length(up_trees),
+        length(Enum.take_while(up_trees, fn tree -> tree < current_tree end)) + 1
+      )
+
+    down_score =
+      min(
+        length(down_trees),
+        length(Enum.take_while(down_trees, fn tree -> tree < current_tree end)) + 1
+      )
+
+    left_score * right_score * up_score * down_score
+  end
+
+Enum.max(tree_scores)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+536625
+```

@@ -121,7 +121,6 @@ No exemplo, o arquivo `csgo.exe` soma `3400` tanto ao diretório `jogos/csgo` qu
 
       {"$", "cd", dir} ->
         current_path = Enum.join([dir | current_dir_tree]) |> String.reverse()
-
         {[current_path | current_dir_tree], dir_sizes}
 
       # Comandos 'ls' e linhas de informação 'dir' não afetam o resultado
