@@ -1,0 +1,275 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 9 - A ponte de cordas
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"},
+  {:kino_vega_lite, "~> 0.1.7"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Resolving Hex dependencies...
+Dependency resolution completed:
+New:
+  kino 0.8.0
+  kino_vega_lite 0.1.7
+  table 0.1.2
+  vega_lite 0.1.6
+* Getting kino (Hex package)
+* Getting kino_vega_lite (Hex package)
+* Getting table (Hex package)
+* Getting vega_lite (Hex package)
+==> table
+Compiling 5 files (.ex)
+Generated table app
+==> vega_lite
+Compiling 5 files (.ex)
+Generated vega_lite app
+==> kino
+Compiling 37 files (.ex)
+Generated kino app
+==> kino_vega_lite
+Compiling 4 files (.ex)
+Generated kino_vega_lite app
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Leitura do arquivo de entrada
+
+```elixir
+input = Kino.Input.textarea("Arquivo de entrada")
+```
+
+Uma forma interessante de armazenar as instruções seria uma tupla no formato `{direção, tamanho}` de cada movimento.
+
+```elixir
+movement_list =
+  input
+  |> Kino.Input.read()
+  |> String.split(["\n", " "], trim: true)
+  |> Enum.reverse()
+  |> Enum.map_every(2, &String.to_integer/1)
+  |> Enum.reverse()
+  |> Enum.chunk_every(2)
+  |> Enum.map(&List.to_tuple/1)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  {"U", 2},
+  {"D", 2},
+  {"R", 1},
+  {"D", 2},
+  {"R", 2},
+  {"D", 2},
+  {"R", 2},
+  {"D", 1},
+  {"L", 2},
+  {"U", 2},
+  {"L", 2},
+  {"R", 1},
+  {"L", 1},
+  {"U", 1},
+  {"L", 2},
+  {"D", 1},
+  {"R", 2},
+  {"D", 1},
+  {"U", 2},
+  {"R", 2},
+  {"D", 2},
+  {"U", 2},
+  {"R", 2},
+  {"L", 1},
+  {"D", 2},
+  {"R", 2},
+  {"U", 2},
+  {"R", 1},
+  {"L", 1},
+  {"U", 2},
+  {"R", 1},
+  {"U", 2},
+  {"L", 1},
+  {"R", 2},
+  {"L", 1},
+  {"R", 1},
+  {"U", 2},
+  {"L", 2},
+  {"R", 1},
+  {"D", 2},
+  {"U", 1},
+  {"R", 1},
+  {"L", 1},
+  {"U", 2},
+  {"D", 2},
+  {"U", 2},
+  {"R", 1},
+  {"D", 1},
+  {"L", ...},
+  {...},
+  ...
+]
+```
+
+## Estrela 1: Os movimentos do fim da corda
+
+Considerando uma corda onde o início e o fim começam na posição `{0,0}`, precisamos tratar os movimentos da cabeça e do rabo da corda de maneiras diferentes. O movimento da cabeça é simples, e é tratado pela função `RopeSimulator.move_head/2`.
+
+Já o movimento do rabo (fim da corda) é um pouco mais complicado, pois existem 5 situações possíveis:
+
+* Movimento horizontal
+* Movimento vertical
+* Movimento diagonal causado por movimento vertical da cabeça
+* Movimento diagonal causado por movimento horizontal da cabeça
+* Movimento da cabeça que não gera movimentação do rabo
+
+Para cada situação, precisamos atualizar a posição do rabo da corda e adicionar essa posição na lista de posições já visitadas, e é isso que as 5 versões da função `RopeSimulator.move_tail/3` fazem.
+
+```elixir
+defmodule RopeSimulator do
+  defstruct head: {0, 0},
+            tail: {0, 0},
+            visited_positions: [{0, 0}]
+
+  def move_head(_head = {x, y}, _movement = {direction, length}) do
+    cond do
+      direction == "U" -> {x, y + length}
+      direction == "D" -> {x, y - length}
+      direction == "R" -> {x + length, y}
+      direction == "L" -> {x - length, y}
+    end
+  end
+
+  # Não precisa mover o tail
+  def move_tail(_head = {hx, hy}, tail = {tx, ty}, visited)
+      when abs(hx - tx) <= 1 and abs(hy - ty) <= 1,
+      do: {visited, tail}
+
+  # Tail se move na diagonal no eixo X
+  def move_tail(head = {hx, hy}, _tail = {tx, ty}, visited)
+      when abs(hx - tx) > 1 and abs(hy - ty) == 1 do
+    new_tail = {Enum.at(tx..hx, 1), hy}
+    move_tail(head, new_tail, [new_tail | visited])
+  end
+
+  # Tail se move na diagonal no eixo Y
+  def move_tail(head = {hx, hy}, _tail = {tx, ty}, visited)
+      when abs(hx - tx) == 1 and abs(hy - ty) > 1 do
+    new_tail = {hx, Enum.at(ty..hy, 1)}
+    move_tail(head, new_tail, [new_tail | visited])
+  end
+
+  # Tail se move horizontalmente
+  def move_tail(head = {hx, hy}, _tail = {tx, ty}, visited)
+      when hx == tx and abs(hy - ty) > 1 do
+    new_tail = {hx, Enum.at(ty..hy, 1)}
+    move_tail(head, new_tail, [new_tail | visited])
+  end
+
+  # Tail se move verticalmente
+  def move_tail(head = {hx, hy}, _tail = {tx, ty}, visited)
+      when abs(hx - tx) > 1 and hy == ty do
+    new_tail = {Enum.at(tx..hx, 1), hy}
+    move_tail(head, new_tail, [new_tail | visited])
+  end
+
+  # Tail se move amplamente na diagonal (Estrela 2)
+  def move_tail(head = {hx, hy}, _tail = {tx, ty}, visited)
+      when abs(hx - tx) == 2 and abs(hy - ty) == 2 do
+    new_tail = {Enum.at(tx..hx, 1), Enum.at(ty..hy, 1)}
+    move_tail(head, new_tail, [new_tail | visited])
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, RopeSimulator, <<70, 79, 82, 49, 0, 0, 17, ...>>, {:move_tail, 3}}
+```
+
+Agora basta usar as funções `move_head` e `move_tail` para cada uma das instruções de movimento do arquivo de entrada e contar quantas posições **diferentes** o rabo da corda visitou:
+
+```elixir
+result =
+  Enum.reduce(movement_list, %RopeSimulator{}, fn movement, now ->
+    new_head_position = RopeSimulator.move_head(now.head, movement)
+
+    {visited_positions, new_tail_position} =
+      RopeSimulator.move_tail(new_head_position, now.tail, now.visited_positions)
+
+    %RopeSimulator{
+      now
+      | head: new_head_position,
+        tail: new_tail_position,
+        visited_positions: visited_positions
+    }
+  end)
+
+result.visited_positions
+|> Enum.uniq()
+|> Enum.count()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+6023
+```
+
+## Estrela 2: A corda de 10 nós
+
+A maneira mais simples de resolver este problema é pensar na corda de 10 nós como 9 cordas de 2 nós cada, onde o rabo de uma é a cabeça da outra.
+
+Como já sabemos o resultado da primeira "corda de 2 nós", precisamos calcular apenas as posições das próximas 8 cordas. Para isso, podemos usar como entrada as posições visitadas pelo rabo de uma corda, já que este rabo será a cabeça da próxima.
+
+```elixir
+defmodule BigRopeSimulator do
+  def move_next_knot(position_list) do
+    knot_result =
+      Enum.reduce(position_list, %RopeSimulator{}, fn head_position, now ->
+        {visited_positions, new_tail_position} =
+          RopeSimulator.move_tail(head_position, now.tail, now.visited_positions)
+
+        %RopeSimulator{
+          now
+          | head: head_position,
+            tail: new_tail_position,
+            visited_positions: visited_positions
+        }
+      end)
+
+    Enum.reverse(knot_result.visited_positions)
+  end
+
+  def move_knots(number_of_knots, head_position_list) do
+    knots = 1..number_of_knots |> Enum.map(fn _knot -> {0, 0} end)
+
+    Enum.reduce(knots, head_position_list, fn _knot_position, position_list ->
+      BigRopeSimulator.move_next_knot(position_list)
+    end)
+  end
+end
+
+BigRopeSimulator.move_knots(8, Enum.reverse(result.visited_positions))
+|> Enum.uniq()
+|> Enum.count()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+2533
+```
+
+
