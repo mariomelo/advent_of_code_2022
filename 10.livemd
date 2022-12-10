@@ -1,0 +1,183 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 10 - Tubo de raio catódicos
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"},
+  {:kino_vega_lite, "~> 0.1.7"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Leitura do arquivo de entrada
+
+```elixir
+input = Kino.Input.textarea("Arquivo de entrada")
+```
+
+Para este arquivo de entrada, basta termos uma lista com os comandos: alguns terão 2 palavras e outros apenas 1, e isso será o suficiente para fazer o _pattern matching_.
+
+```elixir
+commands =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line -> String.split(line, " ", trim: true) end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  ["addx", "1"],
+  ["noop"],
+  ["addx", "2"],
+  ["addx", "5"],
+  ["addx", "2"],
+  ["noop"],
+  ["noop"],
+  ["noop"],
+  ["addx", "5"],
+  ["noop"],
+  ["noop"],
+  ["addx", "1"],
+  ["addx", "2"],
+  ["addx", "-5"],
+  ["addx", "12"],
+  ["addx", "1"],
+  ["addx", "4"],
+  ["addx", "2"],
+  ["noop"],
+  ["addx", "-1"],
+  ["addx", "4"],
+  ["noop"],
+  ["noop"],
+  ["addx", "-37"],
+  ["addx", "21"],
+  ["addx", "-13"],
+  ["addx", "-3"],
+  ["noop"],
+  ["addx", "3"],
+  ["addx", "2"],
+  ["addx", "5"],
+  ["addx", "-2"],
+  ["addx", "7"],
+  ["addx", "-2"],
+  ["addx", "2"],
+  ["addx", "11"],
+  ["addx", "-4"],
+  ["addx", "3"],
+  ["noop"],
+  ["addx", "-18"],
+  ["addx", "7"],
+  ["addx", "14"],
+  ["addx", "2"],
+  ["addx", "5"],
+  ["addx", "-39"],
+  ["addx", "1"],
+  ["addx", "5"],
+  ["noop"],
+  ["noop"],
+  [...],
+  ...
+]
+```
+
+## Estrela 1 - Soma de alguns sinais
+
+O primeiro passo aqui é calcular o valor do sinal em cada ciclo, o que resultará em uma lista de valores cujo índice é o número do ciclo.
+
+Para isso temos que analisar duas situações:
+
+* **noop** -> Repetimos o valor atual do sinal na lista
+* **addx** -> Repetimos o valor atual do sinal e logo depois inserimos o valor atualizado com a soma
+
+**Observação**: Por motivos de desempenho estamos inserindo os novos sinais sempre na "cabeça" da lista, então precisamos invertê-la ao final do processo usando o `Enum.reverse/1`.
+
+```elixir
+initial_signal = [1]
+
+all_signals =
+  Enum.reduce(commands, initial_signal, fn command, signals = [last_signal | _tail] ->
+    case command do
+      [_addx, value] -> [last_signal + String.to_integer(value), last_signal | signals]
+      _ -> [last_signal | signals]
+    end
+  end)
+  |> Enum.reverse()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[1, 1, 2, 2, 2, 4, 4, 9, 9, 11, 11, 11, 11, 11, 16, 16, 16, 16, 17, 17, 19, 19, 14, 14, 26, 26, 27,
+ 27, 31, 31, 33, 33, 33, 32, 32, 36, 36, 36, 36, -1, -1, 20, 20, 7, 7, 4, 4, 4, 7, 7, ...]
+```
+
+Aqui usamos o `Enum.with_index` para poder calcular o valor modulado (`valor * número do ciclo`)de cada ciclo.
+
+Depois disso ignoramos os 19 primeiros ciclos e somamos os resultados de cada 40 ciclos para obter a soma dos ciclos 20, 60, 100, 140, 180 e 220.
+
+```elixir
+all_signals
+|> Enum.with_index(1)
+|> Enum.map(fn {value, index} -> value * index end)
+|> Enum.drop(19)
+|> Enum.take_every(40)
+|> Enum.sum()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+12640
+```
+
+## Estrela 2
+
+Aqui novamente vamos precisar dos índices para saber quando desenhar algo na tela. Para cada pixel, calculamos a sua posição horizontal na tela usando o `rem(index, 40)`, pois sabemos que o monitor tem uma largura de 40px.
+
+E aí caso um dos 3 pixels do _sprite_ coincidam com o valor do sinal, a string `#` é impressa. Do contrário, imprimimos um espaço em branco.
+
+```elixir
+all_signals
+|> Enum.take(240)
+|> Enum.with_index(1)
+|> Enum.map(fn {value, index} ->
+  crt_pixel = rem(index, 40)
+  crt_pixel = if crt_pixel == 0, do: 40, else: crt_pixel
+
+  if crt_pixel >= value and crt_pixel < value + 3 do
+    "#"
+  else
+    " "
+  end
+end)
+|> Enum.chunk_every(40)
+|> Enum.map(&Enum.join/1)
+|> Enum.join("\n")
+|> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#### #  # ###  #### #    ###    ## ###  
+#    #  # #  #    # #    #  #    # #  # 
+###  #### ###    #  #    #  #    # #  # 
+#    #  # #  #  #   #    ###     # ###  
+#    #  # #  # #    #    # #  #  # # #  
+#### #  # ###  #### #### #  #  ##  #  # 
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```

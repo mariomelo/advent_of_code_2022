@@ -233,6 +233,8 @@ A maneira mais simples de resolver este problema é pensar na corda de 10 nós c
 
 Como já sabemos o resultado da primeira "corda de 2 nós", precisamos calcular apenas as posições das próximas 8 cordas. Para isso, podemos usar como entrada as posições visitadas pelo rabo de uma corda, já que este rabo será a cabeça da próxima.
 
+Há ainda um outro detalhe: agora um novo movimento pode acontecer e precisamos adicionar esse tratamento no nosso `RopeSimulator`. Eventualmente o a cabeça de uma corda pode se movimentar na diagonal, coisa que não acontecia na Estrela 1. Por isso uma nova versão da função `RopeSimulator.move_tail` foi criada.
+
 ```elixir
 defmodule BigRopeSimulator do
   def move_next_knot(position_list) do
