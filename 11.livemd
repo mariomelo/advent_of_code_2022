@@ -1,0 +1,441 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 11 - Um macaco no meio
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Leitura do arquivo de entrada
+
+```elixir
+input = Kino.Input.textarea("Arquivo de Entrada")
+```
+
+A leitura do arquivo de entrada é um pouco mais complicada, e para isso vamos criar um módulo `Monkey` para armazenar as informações iniciais de cada macaco, bem como funções específicas para efetuar o _parse_ de cada linha.
+
+```elixir
+defmodule Monkey do
+  defstruct id: nil,
+            items: [],
+            operation_sign: nil,
+            operation_variable: nil,
+            test_operation: :divide,
+            test_variable: nil,
+            true_monkey: nil,
+            false_monkey: nil,
+            inspections_done: 0
+
+  def parse_monkey([monkey_id | monkey_info]) do
+    id =
+      String.replace(monkey_id, ":", "")
+      |> String.split(" ", trim: true)
+      |> Enum.at(1)
+      |> String.to_integer()
+
+    parse_items(%Monkey{id: id}, monkey_info)
+  end
+
+  def parse_items(monkey, [monkey_items | monkey_info]) do
+    items =
+      monkey_items
+      |> String.split(": ", trim: true)
+      |> Enum.at(1)
+      |> String.split(", ", trim: true)
+      |> Enum.map(&String.to_integer/1)
+
+    parse_operation(%Monkey{monkey | items: items}, monkey_info)
+  end
+
+  def parse_operation(monkey, [monkey_operation | monkey_info]) do
+    [sign, variable] =
+      monkey_operation
+      |> String.split(" = old ", trim: true)
+      |> Enum.at(1)
+      |> String.split(" ", trim: true)
+
+    updated_monkey = %Monkey{
+      monkey
+      | operation_sign: sign,
+        operation_variable: variable
+    }
+
+    parse_test(updated_monkey, monkey_info)
+  end
+
+  def parse_test(monkey, [monkey_test | monkey_info]) do
+    test_variable =
+      monkey_test
+      |> String.split("divisible by ")
+      |> Enum.at(1)
+      |> String.to_integer()
+
+    updated_monkey = %Monkey{
+      monkey
+      | test_variable: test_variable
+    }
+
+    parse_monkey_partners(updated_monkey, monkey_info)
+  end
+
+  def parse_monkey_partners(monkey, [test_true, test_false]) do
+    true_monkey =
+      test_true
+      |> String.split("to monkey ")
+      |> Enum.at(1)
+      |> String.to_integer()
+
+    false_monkey =
+      test_false
+      |> String.split("to monkey ")
+      |> Enum.at(1)
+      |> String.to_integer()
+
+    %Monkey{
+      monkey
+      | true_monkey: true_monkey,
+        false_monkey: false_monkey
+    }
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Monkey, <<70, 79, 82, 49, 0, 0, 19, ...>>, {:parse_monkey_partners, 2}}
+```
+
+```elixir
+all_monkeys =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n\n", trim: true)
+  |> Enum.map(fn monkey -> String.split(monkey, "\n", trim: true) end)
+  |> Enum.map(&Monkey.parse_monkey/1)
+  |> Enum.map(fn monkey -> {monkey.id, monkey} end)
+  |> Map.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  0 => %Monkey{
+    id: 0,
+    items: 'MELM2:',
+    operation_sign: "*",
+    operation_variable: "11",
+    test_operation: :divide,
+    test_variable: 5,
+    true_monkey: 1,
+    false_monkey: 5,
+    inspections_done: 0
+  },
+  1 => %Monkey{
+    id: 1,
+    items: 'KFRS`@>',
+    operation_sign: "+",
+    operation_variable: "8",
+    test_operation: :divide,
+    test_variable: 17,
+    true_monkey: 5,
+    false_monkey: 6,
+    inspections_done: 0
+  },
+  2 => %Monkey{
+    id: 2,
+    items: '5',
+    operation_sign: "*",
+    operation_variable: "3",
+    test_operation: :divide,
+    test_variable: 2,
+    true_monkey: 0,
+    false_monkey: 7,
+    inspections_done: 0
+  },
+  3 => %Monkey{
+    id: 3,
+    items: 'U@]@c',
+    operation_sign: "+",
+    operation_variable: "4",
+    test_operation: :divide,
+    test_variable: 7,
+    true_monkey: 7,
+    false_monkey: 2,
+    inspections_done: 0
+  },
+  4 => %Monkey{
+    id: 4,
+    items: '=\\G',
+    operation_sign: "*",
+    operation_variable: "old",
+    test_operation: :divide,
+    test_variable: 3,
+    true_monkey: 2,
+    false_monkey: 3,
+    inspections_done: 0
+  },
+  5 => %Monkey{
+    id: 5,
+    items: 'OI2Z',
+    operation_sign: "+",
+    operation_variable: "2",
+    test_operation: :divide,
+    test_variable: 11,
+    true_monkey: 4,
+    false_monkey: 6,
+    inspections_done: 0
+  },
+  6 => %Monkey{
+    id: 6,
+    items: '2Y',
+    operation_sign: "+",
+    operation_variable: "3",
+    test_operation: :divide,
+    test_variable: 13,
+    true_monkey: 4,
+    false_monkey: 3,
+    inspections_done: 0
+  },
+  7 => %Monkey{
+    id: 7,
+    items: 'S8@:][8A',
+    operation_sign: "+",
+    operation_variable: "5",
+    test_operation: :divide,
+    test_variable: 19,
+    true_monkey: 1,
+    false_monkey: 0,
+    inspections_done: 0
+  }
+}
+```
+
+## Estrela 1: O que acontece depois de 20 iterações
+
+A cada iteração precisamos varrer todos os items da mochila de um determinado macaco e:
+
+* Remover o item da mochila de um macaco
+* Acumular o número de inspeções realizadas por aquele macacoSe iterarmosSeadsasdasdsd1SeasdssssasdasdasdgfdgfdgSeadasdasdadasd
+* Calcular o novo nível de preocupação
+* Atribuir o item a um novo macaco
+
+Essas operações são realizadas na função recursiva `MonkeyIterator.monkey_turn/2`, que é chamada sucessivamente para cada macaco da lista peloa função também recursiva `MonkeyIterator.iterate/2`.
+
+```elixir
+defmodule MonkeyIterator do
+  def iterate(monkey_map, 0), do: monkey_map
+
+  def iterate(monkey_map, times) do
+    updated_map =
+      monkey_map
+      |> Map.keys()
+      |> Enum.reduce(monkey_map, fn monkey_id, current_map ->
+        monkey_turn(Map.get(current_map, monkey_id), current_map)
+      end)
+
+    iterate(updated_map, times - 1)
+  end
+
+  defp monkey_turn(%Monkey{items: []}, monkey_map), do: monkey_map
+
+  defp monkey_turn(monkey, monkey_map) do
+    [item_to_analyze | remaining_items] = monkey.items
+
+    updated_item =
+      item_to_analyze
+      |> inspect_item(monkey.operation_sign, monkey.operation_variable)
+      |> reset_worry_level
+
+    destination_monkey =
+      monkey_map
+      |> Map.get(test_item(updated_item, monkey))
+
+    updated_monkey = %Monkey{
+      monkey
+      | items: remaining_items,
+        inspections_done: monkey.inspections_done + 1
+    }
+
+    updated_monkey_map =
+      monkey_map
+      |> Map.replace!(
+        destination_monkey.id,
+        %Monkey{
+          destination_monkey
+          | items: destination_monkey.items ++ [updated_item]
+        }
+      )
+      |> Map.replace!(monkey.id, updated_monkey)
+
+    monkey_turn(updated_monkey, updated_monkey_map)
+  end
+
+  defp test_item(item, monkey) when rem(item, monkey.test_variable) == 0, do: monkey.true_monkey
+  defp test_item(_item, monkey), do: monkey.false_monkey
+
+  defp inspect_item(item, "*", "old"), do: item * item
+  defp inspect_item(item, "+", "old"), do: item + item
+  defp inspect_item(item, "*", variable), do: item * String.to_integer(variable)
+  defp inspect_item(item, "+", variable), do: item + String.to_integer(variable)
+
+  defp reset_worry_level(item), do: Integer.floor_div(item, 3)
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, MonkeyIterator, <<70, 79, 82, 49, 0, 0, 17, ...>>, {:reset_worry_level, 1}}
+```
+
+Com o módulo pronto, basta iterar por vinte vezes e multiplicar as inspeções realizadas pelos dois macacos mais ativos.
+
+```elixir
+[monkey_1, monkey_2] =
+  MonkeyIterator.iterate(all_monkeys, 20)
+  |> Map.values()
+  |> Enum.map(fn monkey -> monkey.inspections_done end)
+  |> Enum.sort(:desc)
+  |> Enum.take(2)
+
+monkey_1 * monkey_2
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+57838
+```
+
+## Estrela 2: 10.000 ciclos de preocupação
+
+Com 10.000 ciclos, o nível de preocupação acaba por estourar o tamanho de um inteiro. Para evitar isso, basta pensarmos da seguinte forma:
+
+* Cada macaco efetua um teste para descobrir o destino do item que vai arremessar
+* Os testes são sempre baseados em divisões e restos
+
+Isto faz com que o número que representa a preocupação não seja tão relevante: podemos alterá-lo desde que o resultado do teste não se altere **para nenhum macaco**.
+
+Para conseguir esse efeito, basta multiplicar os valores dos testes realizados por cada um dos macacos. Exemplo:
+
+* Monkey: 0 -> Test: divisible by 23
+* Monkey: 1 -> Test: divisible by 19
+* Monkey: 2 -> Test: divisible by 13
+* Monkey: 3 -> Test: divisible by 17
+
+Se multiplicarmos **23 * 19 * 13 * 17**, temos **96577**. Caso tenhamos um item cujo nível de preocupação chegou a digamos, 100.000, podemos convertê-lo para `rem(100_000, 96577) = 3423`.
+
+Isso porque:
+
+* rem(100_000, 23) == rem(3423, 23)
+* rem(100_000, 19) == rem(3423, 19)
+* rem(100_000, 13) == rem(3423, 13)
+* rem(100_000, 17) == rem(3423, 17)
+
+E desta forma mantemos o nívem de preocupação sempre sob controle e sem alterar as interações entre os macacos rebeldes.
+
+<!-- livebook:{"break_markdown":true} -->
+
+---
+
+As únicas mudanças que fizemos no módulo `MonkeyIterator2` foi acrescentar o parâmetro `worry_base` e mudar a função `reset_worry_level` para que ela agora module o nível de preocupação de acordo com o `worry_base`.
+
+```elixir
+defmodule MonkeyIterator2 do
+  def iterate(monkey_map, 0, _worry_base), do: monkey_map
+
+  def iterate(monkey_map, times, worry_base) do
+    updated_map =
+      monkey_map
+      |> Map.keys()
+      |> Enum.reduce(monkey_map, fn monkey_id, current_map ->
+        monkey_turn(Map.get(current_map, monkey_id), current_map, worry_base)
+      end)
+
+    iterate(updated_map, times - 1, worry_base)
+  end
+
+  defp monkey_turn(%Monkey{items: []}, monkey_map, _worry_base), do: monkey_map
+
+  defp monkey_turn(monkey, monkey_map, worry_base) do
+    [item_to_analyze | remaining_items] = monkey.items
+
+    updated_item =
+      item_to_analyze
+      |> inspect_item(monkey.operation_sign, monkey.operation_variable)
+      |> reset_worry_level(worry_base)
+
+    destination_monkey =
+      monkey_map
+      |> Map.get(test_item(updated_item, monkey))
+
+    updated_monkey = %Monkey{
+      monkey
+      | items: remaining_items,
+        inspections_done: monkey.inspections_done + 1
+    }
+
+    updated_monkey_map =
+      monkey_map
+      |> Map.replace!(
+        destination_monkey.id,
+        %Monkey{
+          destination_monkey
+          | items: destination_monkey.items ++ [updated_item]
+        }
+      )
+      |> Map.replace!(monkey.id, updated_monkey)
+
+    monkey_turn(updated_monkey, updated_monkey_map, worry_base)
+  end
+
+  defp test_item(item, monkey) when rem(item, monkey.test_variable) == 0, do: monkey.true_monkey
+  defp test_item(_item, monkey), do: monkey.false_monkey
+
+  defp inspect_item(item, "*", "old"), do: item * item
+  defp inspect_item(item, "+", "old"), do: item + item
+  defp inspect_item(item, "*", variable), do: item * String.to_integer(variable)
+  defp inspect_item(item, "+", variable), do: item + String.to_integer(variable)
+
+  defp reset_worry_level(item, worry_base), do: rem(item, worry_base)
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, MonkeyIterator2, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:reset_worry_level, 2}}
+```
+
+Aqui primeiramente calculamos o `worry_base` multiplicando as variáveis de teste de todos os macacos do arquivo de entrada, e depois fazemos o cálculo como fizemos para a Estrela 1.
+
+```elixir
+worry_base =
+  all_monkeys
+  |> Map.values()
+  |> Enum.map(fn monkey -> monkey.test_variable end)
+  |> Enum.reduce(1, fn number, acc -> number * acc end)
+
+MonkeyIterator2.iterate(all_monkeys, 10_000, worry_base)
+|> Map.values()
+|> Enum.map(fn monkey -> monkey.inspections_done end)
+|> Enum.sort(:desc)
+|> Enum.take(2)
+|> Enum.reduce(1, fn item, acc -> item * acc end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+15050382231
+```
