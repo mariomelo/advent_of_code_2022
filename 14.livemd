@@ -1,0 +1,356 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Dia 14 - Reservatório de Regolito
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Leitura do arquivo de entrada
+
+```elixir
+input = Kino.Input.textarea("Entrada")
+```
+
+O primeiro passo é criar uma lista de pares de pontos para que possamos desenhar as retas que compõem a caverna:
+
+```elixir
+cave_points =
+  Kino.Input.read(input)
+  |> String.split("\n")
+  |> Enum.map(fn line -> String.split(line, [" -> ", ","], trim: true) end)
+  |> Enum.flat_map(fn line -> Enum.chunk_every(line, 4, 2) end)
+  |> Enum.filter(fn line -> length(line) == 4 end)
+  |> Enum.map(fn line -> Enum.map(line, &String.to_integer/1) end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  [476, 63, 481, 63],
+  [478, 93, 478, 87],
+  [478, 87, 478, 93],
+  [478, 93, 480, 93],
+  [480, 93, 480, 90],
+  [480, 90, 480, 93],
+  [480, 93, 482, 93],
+  [482, 93, 482, 83],
+  [482, 83, 482, 93],
+  [482, 93, 484, 93],
+  [484, 93, 484, 88],
+  [484, 88, 484, 93],
+  [484, 93, 486, 93],
+  [486, 93, 486, 83],
+  [486, 83, 486, 93],
+  [486, 93, 488, 93],
+  [488, 93, 488, 90],
+  [488, 90, 488, 93],
+  [488, 93, 490, 93],
+  [490, 93, 490, 87],
+  [490, 87, 490, 93],
+  [489, 96, 489, 98],
+  [489, 98, 482, 98],
+  [482, 98, 482, 101],
+  [482, 101, 496, 101],
+  [496, 101, 496, 98],
+  [496, 98, 494, 98],
+  [494, 98, 494, 96],
+  [489, 96, 489, 98],
+  [489, 98, 482, 98],
+  [482, 98, 482, 101],
+  [482, 101, 496, 101],
+  [496, 101, 496, 98],
+  [496, 98, 494, 98],
+  [494, 98, 494, 96],
+  [478, 93, 478, 87],
+  [478, 87, 478, 93],
+  [478, 93, 480, 93],
+  [480, 93, 480, 90],
+  [480, 90, 480, 93],
+  [480, 93, 482, 93],
+  [482, 93, 482, 83],
+  [482, 83, 482, 93],
+  [482, 93, 484, 93],
+  [484, 93, 484, 88],
+  [484, 88, 484, 93],
+  [484, 93, 486, ...],
+  [486, 93, ...],
+  [486, ...],
+  [...],
+  ...
+]
+```
+
+Com essas linhas, podemos agora criar a estrutura da caverna no formato: `{coordenada_x, coordenada_y} => material`, onde o material pode ser:
+
+* Parede da caverna, representada pelo átomo `:wall`
+* Espaço vazio, representada pelo átomo `:empty`
+* Areia estacionada, representada pelo átomo `:sand`
+
+```elixir
+defmodule CaveParser do
+  def draw_cave(cave_points) do
+    full_cave = mark_empty_spaces(cave_points)
+
+    Enum.reduce(cave_points, full_cave, fn line, cave ->
+      draw_line(line, cave)
+    end)
+  end
+
+  def draw_line([same_x, y_1, same_x, y_2], current_cave) do
+    cave_line =
+      y_1..y_2
+      |> Enum.map(fn y -> {{same_x, y}, :wall} end)
+      |> Map.new()
+
+    Map.merge(current_cave, cave_line)
+  end
+
+  def draw_line([x_1, same_y, x_2, same_y], current_cave) do
+    cave_line =
+      x_1..x_2
+      |> Enum.map(fn x -> {{x, same_y}, :wall} end)
+      |> Map.new()
+
+    Map.merge(current_cave, cave_line)
+  end
+
+  defp mark_empty_spaces(cave_points) do
+    max_x =
+      cave_points
+      |> Enum.flat_map(fn [x1, _, x2, _] -> [x1, x2] end)
+      |> Enum.max()
+
+    max_y =
+      cave_points
+      |> Enum.flat_map(fn [_, y1, _, y2] -> [y1, y2] end)
+      |> Enum.max()
+
+    cave_map = for x <- 0..max_x, y <- 0..max_y, do: {{x, y}, :empty}
+
+    Map.new(cave_map)
+  end
+end
+
+cave = CaveParser.draw_cave(cave_points)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  {150, 137} => :empty,
+  {440, 15} => :empty,
+  {18, 103} => :empty,
+  {469, 44} => :empty,
+  {76, 13} => :empty,
+  {297, 142} => :empty,
+  {436, 103} => :empty,
+  {14, 164} => :empty,
+  {519, 43} => :empty,
+  {198, 146} => :empty,
+  {61, 121} => :empty,
+  {417, 25} => :empty,
+  {112, 138} => :empty,
+  {482, 11} => :empty,
+  {461, 118} => :empty,
+  {216, 1} => :empty,
+  {8, 159} => :empty,
+  {315, 152} => :empty,
+  {516, 57} => :empty,
+  {233, 89} => :empty,
+  {53, 157} => :empty,
+  {511, 155} => :empty,
+  {263, 76} => :empty,
+  {227, 151} => :empty,
+  {37, 47} => :empty,
+  {63, 146} => :empty,
+  {65, 63} => :empty,
+  {511, 153} => :empty,
+  {482, 130} => :empty,
+  {184, 93} => :empty,
+  {439, 144} => :empty,
+  {77, 129} => :empty,
+  {247, 65} => :empty,
+  {120, 47} => :empty,
+  {141, 68} => :empty,
+  {492, 126} => :empty,
+  {510, 61} => :empty,
+  {368, 143} => :empty,
+  {107, 142} => :empty,
+  {497, 135} => :empty,
+  {226, 23} => :empty,
+  {173, 120} => :empty,
+  {389, 32} => :empty,
+  {38, 2} => :empty,
+  {231, 125} => :empty,
+  {168, 24} => :empty,
+  {501, 75} => :empty,
+  {312, 123} => :empty,
+  {257, ...} => :empty,
+  {...} => :empty,
+  ...
+}
+```
+
+## Estrela 1 - Cascata de Areia
+
+Agora podemos usar recursividade para ir atualizando nosso mapa da caverna: sempre que um grão não puder mais cair reto, na diagonal esquerda ou na diagonal direita, ele se estaciona.
+
+Quando um grão cai para fora da caverna (para uma coordenada não existente em nosso mapa), temos nosso resultado final. Aí basta contar quantas coordenadas possuem o valor `:sand` e correr pro abraço.
+
+```elixir
+defmodule SandSimulator do
+  @sand_origin {500, 0}
+
+  def pour_sand(cave) do
+    fall_straight(@sand_origin, cave)
+  end
+
+  def fall_straight({x, y}, cave) do
+    case Map.get(cave, {x, y}, :error) do
+      :wall -> fall_left({x, y - 1}, cave)
+      :sand -> fall_left({x, y - 1}, cave)
+      :empty -> fall_straight({x, y + 1}, cave)
+      :error -> :finish
+    end
+  end
+
+  def fall_left(:finish, _cave), do: :finish
+
+  def fall_left({x, y}, cave) do
+    case Map.get(cave, {x - 1, y + 1}, :error) do
+      :wall -> fall_right({x, y}, cave)
+      :sand -> fall_right({x, y}, cave)
+      :empty -> fall_straight({x - 1, y + 1}, cave)
+      :error -> :finish
+    end
+  end
+
+  def fall_right(:finish, _cave), do: :finish
+
+  def fall_right({x, y}, cave) do
+    case Map.get(cave, {x + 1, y + 1}, :error) do
+      :wall -> {x, y}
+      :sand -> {x, y}
+      :empty -> fall_straight({x + 1, y + 1}, cave)
+      :error -> :finish
+    end
+  end
+
+  def start_cave(cave) do
+    new_point = pour_sand(cave)
+
+    cond do
+      new_point == :finish -> cave
+      true -> Map.replace(cave, new_point, :sand) |> start_cave()
+    end
+  end
+end
+
+SandSimulator.start_cave(cave)
+|> Map.values()
+|> Enum.filter(fn value -> value == :sand end)
+|> Enum.count()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+618
+```
+
+## Estrela 2: Areia infinita
+
+Aqui a lógica não muda muito, mas resolvi criar um módulo `NewSandSimulator` apenas para não complicar a compreensão da solução usada na Estrela 1.
+
+Basicamente precisamos criar uma condição onde qualquer posição X pode ser válida contanto que `y` não ultrapasse o "chão infinito". Para isso acontecer, vamos calcular o `y`do chão infinito e passá-lo para o novo `NewSandSimulator`.
+
+Como não temos mais a condição de erro (pois os grãos nunca vão cair pra fora da caverna), precisamos fazer algo um pouco diferente:
+
+* Criar uma função `get_cave_point_value/3` que simulará o chão infinito
+* Mudar a condição de parada para o caso onde o local de repouso do grão seja o ponto `{500,0}`
+
+E aí é só rodar novamente.
+
+```elixir
+defmodule NewSandSimulator do
+  @sand_origin {500, 0}
+
+  def pour_sand(cave, cave_max_y) do
+    fall_straight(@sand_origin, cave, cave_max_y)
+  end
+
+  def fall_straight({x, y}, cave, cave_max_y) do
+    # IO.puts("Straight: #{x}, #{y}")
+
+    case get_cave_point_value(cave, {x, y}, cave_max_y) do
+      :wall -> fall_left({x, y - 1}, cave, cave_max_y)
+      :sand -> fall_left({x, y - 1}, cave, cave_max_y)
+      :empty -> fall_straight({x, y + 1}, cave, cave_max_y)
+    end
+  end
+
+  def fall_left({x, y}, cave, cave_max_y) do
+    # IO.puts("Left: #{x}, #{y}")
+
+    case get_cave_point_value(cave, {x - 1, y + 1}, cave_max_y) do
+      :wall -> fall_right({x, y}, cave, cave_max_y)
+      :sand -> fall_right({x, y}, cave, cave_max_y)
+      :empty -> fall_straight({x - 1, y + 1}, cave, cave_max_y)
+    end
+  end
+
+  def fall_right({x, y}, cave, cave_max_y) do
+    # IO.puts("Right: #{x}, #{y}")
+
+    case get_cave_point_value(cave, {x + 1, y + 1}, cave_max_y) do
+      :wall -> {x, y}
+      :sand -> {x, y}
+      :empty -> fall_straight({x + 1, y + 1}, cave, cave_max_y)
+    end
+  end
+
+  defp get_cave_point_value(cave, {x, y}, cave_max_y) do
+    if y >= cave_max_y do
+      :wall
+    else
+      Map.get(cave, {x, y}, :empty)
+    end
+  end
+
+  def start_cave(cave, cave_max_y) do
+    new_point = pour_sand(cave, cave_max_y)
+
+    cond do
+      new_point == @sand_origin -> Map.merge(cave, %{new_point => :sand})
+      true -> Map.merge(cave, %{new_point => :sand}) |> start_cave(cave_max_y)
+    end
+  end
+end
+
+cave_max_y =
+  Map.keys(cave)
+  |> Enum.map(fn {_x, y} -> y end)
+  |> Enum.max()
+
+NewSandSimulator.start_cave(cave, cave_max_y + 2)
+|> Map.values()
+|> Enum.filter(fn value -> value == :sand end)
+|> Enum.count()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+26358
+```
